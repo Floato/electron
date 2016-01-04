@@ -78,17 +78,15 @@ PrintMsg_Print_Params GetCssPrintParams(
       ConvertUnit(page_params.page_size.width(), dpi, kPixelsPerInch),
       ConvertUnit(page_params.page_size.height(), dpi, kPixelsPerInch));
   int margin_top_in_pixels =
-      ConvertUnit(page_params.margin_top, dpi, kPixelsPerInch);
+      ConvertUnit(0, dpi, kPixelsPerInch);
   int margin_right_in_pixels = ConvertUnit(
-      page_params.page_size.width() -
-      page_params.content_size.width() - page_params.margin_left,
+      0,
       dpi, kPixelsPerInch);
   int margin_bottom_in_pixels = ConvertUnit(
-      page_params.page_size.height() -
-      page_params.content_size.height() - page_params.margin_top,
+      0,
       dpi, kPixelsPerInch);
   int margin_left_in_pixels = ConvertUnit(
-      page_params.margin_left,
+      0,
       dpi, kPixelsPerInch);
 
   blink::WebSize original_page_size_in_pixels = page_size_in_pixels;
@@ -102,10 +100,8 @@ PrintMsg_Print_Params GetCssPrintParams(
                                       margin_left_in_pixels);
   }
 
-  int new_content_width = page_size_in_pixels.width -
-                          margin_left_in_pixels - margin_right_in_pixels;
-  int new_content_height = page_size_in_pixels.height -
-                           margin_top_in_pixels - margin_bottom_in_pixels;
+  int new_content_width = page_size_in_pixels.width;
+  int new_content_height = page_size_in_pixels.height;
 
   // Invalid page size and/or margins. We just use the default setting.
   if (new_content_width < 1 || new_content_height < 1) {
@@ -180,23 +176,23 @@ void CalculatePageLayoutFromPrintParams(
   int content_width = params.content_size.width();
   int content_height = params.content_size.height();
 
-  int margin_bottom = params.page_size.height() -
-                      content_height - params.margin_top;
-  int margin_right = params.page_size.width() -
-                      content_width - params.margin_left;
+  // int margin_bottom = params.page_size.height() -
+  //                     content_height - params.margin_top;
+  // int margin_right = params.page_size.width() -
+  //                     content_width - params.margin_left;
 
   page_layout_in_points->content_width =
       ConvertUnit(content_width, dpi, kPointsPerInch);
   page_layout_in_points->content_height =
       ConvertUnit(content_height, dpi, kPointsPerInch);
   page_layout_in_points->margin_top =
-      ConvertUnit(params.margin_top, dpi, kPointsPerInch);
+      ConvertUnit(0, dpi, kPointsPerInch);
   page_layout_in_points->margin_right =
-      ConvertUnit(margin_right, dpi, kPointsPerInch);
+      ConvertUnit(0, dpi, kPointsPerInch);
   page_layout_in_points->margin_bottom =
-      ConvertUnit(margin_bottom, dpi, kPointsPerInch);
+      ConvertUnit(0, dpi, kPointsPerInch);
   page_layout_in_points->margin_left =
-      ConvertUnit(params.margin_left, dpi, kPointsPerInch);
+      ConvertUnit(0, dpi, kPointsPerInch);
 }
 
 void EnsureOrientationMatches(const PrintMsg_Print_Params& css_params,
@@ -696,8 +692,7 @@ void PrintWebViewHelper::GetPageSizeAndContentAreaFromPageLayout(
       page_layout_in_points.content_height +
           page_layout_in_points.margin_top +
           page_layout_in_points.margin_bottom);
-  *content_area = gfx::Rect(page_layout_in_points.margin_left,
-                            page_layout_in_points.margin_top,
+  *content_area = gfx::Rect(0, 0,
                             page_layout_in_points.content_width,
                             page_layout_in_points.content_height);
 }
