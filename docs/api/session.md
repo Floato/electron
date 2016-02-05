@@ -60,7 +60,8 @@ The following events are available on instances of `Session`:
 
 Emitted when Electron is about to download `item` in `webContents`.
 
-Calling `event.preventDefault()` will cancel the download.
+Calling `event.preventDefault()` will cancel the download and `item` will not be
+available from next tick of the process.
 
 ```javascript
 session.defaultSession.on('will-download', function(event, item, webContents) {
@@ -159,6 +160,13 @@ on complete.
 Removes the cookies matching `url` and `name`, `callback` will called with
 `callback()` on complete.
 
+#### `ses.getCacheSize(callback)`
+
+* `callback` Function
+  * `size` Integer - Cache size used in bytes.
+
+Returns the session's current cache size.
+
 #### `ses.clearCache(callback)`
 
 * `callback` Function - Called when operation is done
@@ -179,43 +187,46 @@ Clears the session’s HTTP cache.
 
 Clears the data of web storages.
 
+#### `ses.flushStorageData()`
+
+Writes any unwritten DOMStorage data to disk.
+
 #### `ses.setProxy(config, callback)`
 
-* `config` String
+* `config` Object
+  * `pacScript` String - The URL associated with the PAC file.
+  * `proxyRules` String - Rules indicating which proxies to use.
 * `callback` Function - Called when operation is done.
 
-If `config` is a PAC url, it is used directly otherwise
-`config` is parsed based on the following rules indicating which
-proxies to use for the session.
+Sets the proxy settings.
+
+When `pacScript` and `proxyRules` are provided together, the `proxyRules`
+option is ignored and `pacScript` configuration is applied.
+
+The `proxyRules` has to follow the rules bellow:
 
 ```
-config = scheme-proxies[";"<scheme-proxies>]
-scheme-proxies = [<url-scheme>"="]<proxy-uri-list>
-url-scheme = "http" | "https" | "ftp" | "socks"
-proxy-uri-list = <proxy-uri>[","<proxy-uri-list>]
-proxy-uri = [<proxy-scheme>"://"]<proxy-host>[":"<proxy-port>]
-
-  For example:
-       "http=foopy:80;ftp=foopy2"  -- use HTTP proxy "foopy:80" for http://
-                                      URLs, and HTTP proxy "foopy2:80" for
-                                      ftp:// URLs.
-       "foopy:80"                  -- use HTTP proxy "foopy:80" for all URLs.
-       "foopy:80,bar,direct://"    -- use HTTP proxy "foopy:80" for all URLs,
-                                      failing over to "bar" if "foopy:80" is
-                                      unavailable, and after that using no
-                                      proxy.
-       "socks4://foopy"            -- use SOCKS v4 proxy "foopy:1080" for all
-                                      URLs.
-       "http=foopy,socks5://bar.com -- use HTTP proxy "foopy" for http URLs,
-                                      and fail over to the SOCKS5 proxy
-                                      "bar.com" if "foopy" is unavailable.
-       "http=foopy,direct://       -- use HTTP proxy "foopy" for http URLs,
-                                      and use no proxy if "foopy" is
-                                      unavailable.
-       "http=foopy;socks=foopy2   --  use HTTP proxy "foopy" for http URLs,
-                                      and use socks4://foopy2 for all other
-                                      URLs.
+proxyRules = schemeProxies[";"<schemeProxies>]
+schemeProxies = [<urlScheme>"="]<proxyURIList>
+urlScheme = "http" | "https" | "ftp" | "socks"
+proxyURIList = <proxyURL>[","<proxyURIList>]
+proxyURL = [<proxyScheme>"://"]<proxyHost>[":"<proxyPort>]
 ```
+
+For example:
+
+* `http=foopy:80;ftp=foopy2` - Use HTTP proxy `foopy:80` for `http://` URLs, and
+  HTTP proxy `foopy2:80` for `ftp://` URLs.
+* `foopy:80` - Use HTTP proxy `foopy:80` for all URLs.
+* `foopy:80,bar,direct://` - Use HTTP proxy `foopy:80` for all URLs, failing
+  over to `bar` if `foopy:80` is unavailable, and after that using no proxy.
+* `socks4://foopy` - Use SOCKS v4 proxy `foopy:1080` for all URLs.
+* `http=foopy,socks5://bar.com` - Use HTTP proxy `foopy` for http URLs, and fail
+  over to the SOCKS5 proxy `bar.com` if `foopy` is unavailable.
+* `http=foopy,direct://` - Use HTTP proxy `foopy` for http URLs, and use no
+  proxy if `foopy` is unavailable.
+* `http=foopy;socks=foopy2` -  Use HTTP proxy `foopy` for http URLs, and use
+  `socks4://foopy2` for all other URLs.
 
 ### `ses.resolveProxy(url, callback)`
 
@@ -280,6 +291,35 @@ myWindow.webContents.session.setCertificateVerifyProc(function(hostname, cert, c
 });
 ```
 
+#### `ses.setPermissionRequestHandler(handler)`
+
+* `handler` Function
+  * `webContents` Object - [WebContents](web-contents.md) requesting the permission.
+  * `permission`  String - Enum of 'media', 'geolocation', 'notifications', 'midiSysex', 'pointerLock', 'fullscreen'.
+  * `callback`  Function - Allow or deny the permission.
+
+Sets the handler which can be used to respond to permission requests for the `session`.
+Calling `callback(true)` will allow the permission and `callback(false)` will reject it.
+
+```javascript
+session.fromPartition(partition).setPermissionRequestHandler(function(webContents, permission, callback) {
+  if (webContents.getURL() === host) {
+    if (permission == "notifications") {
+      callback(false); // denied.
+      return;
+    }
+  }
+
+  callback(true);
+});
+```
+
+#### `ses.clearHostResolverCache([callback])`
+
+* `callback` Function (optional) - Called when operation is done.
+
+Clears the host resolver cache.
+
 #### `ses.webRequest`
 
 The `webRequest` API set allows to intercept and modify contents of a request at
@@ -323,6 +363,14 @@ is about to occur.
   * `method` String
   * `resourceType` String
   * `timestamp` Double
+  * `uploadData` Array (optional)
+* `callback` Function
+
+The `uploadData` is an array of `data` objects:
+
+* `data` Object
+  * `bytes` Buffer - Content being sent.
+  * `file` String - Path of file being uploaded.
 
 The `callback` has to be called with an `response` object:
 
@@ -347,6 +395,7 @@ TCP connection is made to the server, but before any http data is sent.
   * `resourceType` String
   * `timestamp` Double
   * `requestHeaders` Object
+* `callback` Function
 
 The `callback` has to be called with an `response` object:
 
@@ -389,6 +438,7 @@ response headers of a request have been received.
   * `statusLine` String
   * `statusCode` Integer
   * `responseHeaders` Object
+* `callback` Function
 
 The `callback` has to be called with an `response` object:
 

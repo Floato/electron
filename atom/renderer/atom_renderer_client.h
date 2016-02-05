@@ -22,8 +22,8 @@ class AtomRendererClient : public content::ContentRendererClient,
   AtomRendererClient();
   virtual ~AtomRendererClient();
 
-  void DidCreateScriptContext(blink::WebFrame* frame,
-                              v8::Handle<v8::Context> context);
+  void DidCreateScriptContext(v8::Handle<v8::Context> context);
+  void WillReleaseScriptContext(v8::Handle<v8::Context> context);
 
  private:
   enum NodeIntegration {
@@ -56,12 +56,7 @@ class AtomRendererClient : public content::ContentRendererClient,
       content::RenderFrame* render_frame,
       const std::string& mime_type,
       const GURL& original_url) override;
-  bool ShouldOverridePageVisibilityState(
-      const content::RenderFrame* render_frame,
-      blink::WebPageVisibilityState* override_state) override;
   void AddKeySystems(std::vector<media::KeySystemInfo>* key_systems) override;
-
-  void EnableWebRuntimeFeatures();
 
   scoped_ptr<NodeBindings> node_bindings_;
   scoped_ptr<AtomBindings> atom_bindings_;

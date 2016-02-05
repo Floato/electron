@@ -14,14 +14,17 @@
 #include "atom/browser/api/save_page_handler.h"
 #include "atom/browser/atom_browser_context.h"
 #include "atom/browser/atom_browser_main_parts.h"
+#include "atom/browser/atom_permission_manager.h"
 #include "atom/browser/net/atom_cert_verifier.h"
 #include "atom/common/native_mate_converters/callback.h"
+#include "atom/common/native_mate_converters/content_converter.h"
 #include "atom/common/native_mate_converters/gurl_converter.h"
 #include "atom/common/native_mate_converters/file_path_converter.h"
 #include "atom/common/native_mate_converters/net_converter.h"
 #include "atom/common/node_includes.h"
 #include "base/files/file_path.h"
 #include "base/prefs/pref_service.h"
+#include "base/strings/string_number_conversions.h"
 #include "base/strings/string_util.h"
 #include "base/thread_task_runner_handle.h"
 #include "brightray/browser/net/devtools_network_conditions.h"
@@ -33,6 +36,7 @@
 #include "native_mate/object_template_builder.h"
 #include "net/base/load_flags.h"
 #include "net/disk_cache/disk_cache.h"
+#include "net/dns/host_cache.h"
 #include "net/proxy/proxy_service.h"
 #include "net/proxy/proxy_config_service_fixed.h"
 #include "net/url_request/url_request_context.h"
@@ -114,14 +118,25 @@ struct Converter<net::ProxyConfig> {
   static bool FromV8(v8::Isolate* isolate,
                      v8::Local<v8::Value> val,
                      net::ProxyConfig* out) {
-    std::string proxy;
-    if (!ConvertFromV8(isolate, val, &proxy))
+    std::string proxy_rules;
+    GURL pac_url;
+    mate::Dictionary options;
+    // Fallback to previous API when passed String.
+    // https://git.io/vuhjj
+    if (ConvertFromV8(isolate, val, &proxy_rules)) {
+      pac_url = GURL(proxy_rules);  // Assume it is PAC script if it is URL.
+    } else if (ConvertFromV8(isolate, val, &options)) {
+      options.Get("pacScript", &pac_url);
+      options.Get("proxyRules", &proxy_rules);
+    } else {
       return false;
-    auto pac_url = GURL(proxy);
-    if (pac_url.is_valid()) {
+    }
+
+    // pacScript takes precedence over proxyRules.
+    if (!pac_url.is_empty() && pac_url.is_valid()) {
       out->set_pac_url(pac_url);
     } else {
-      out->proxy_rules().ParseFromString(proxy);
+      out->proxy_rules().ParseFromString(proxy_rules);
     }
     return true;
   }
@@ -193,7 +208,7 @@ class ResolveProxyHelper {
 };
 
 // Runs the callback in UI thread.
-template <typename ...T>
+template<typename ...T>
 void RunCallbackInUI(const base::Callback<void(T...)>& callback, T... result) {
   BrowserThread::PostTask(
       BrowserThread::UI, FROM_HERE, base::Bind(callback, result...));
@@ -201,19 +216,35 @@ void RunCallbackInUI(const base::Callback<void(T...)>& callback, T... result) {
 
 // Callback of HttpCache::GetBackend.
 void OnGetBackend(disk_cache::Backend** backend_ptr,
+                  Session::CacheAction action,
                   const net::CompletionCallback& callback,
                   int result) {
   if (result != net::OK) {
     RunCallbackInUI(callback, result);
   } else if (backend_ptr && *backend_ptr) {
-    (*backend_ptr)->DoomAllEntries(base::Bind(&RunCallbackInUI<int>, callback));
+    if (action == Session::CacheAction::CLEAR) {
+      (*backend_ptr)->DoomAllEntries(base::Bind(&RunCallbackInUI<int>,
+                                                callback));
+    } else if (action == Session::CacheAction::STATS) {
+      base::StringPairs stats;
+      (*backend_ptr)->GetStats(&stats);
+      for (size_t i = 0; i < stats.size(); ++i) {
+        if (stats[i].first == "Current size") {
+          int current_size;
+          base::StringToInt(stats[i].second, &current_size);
+          RunCallbackInUI(callback, current_size);
+          break;
+        }
+      }
+    }
   } else {
     RunCallbackInUI<int>(callback, net::ERR_FAILED);
   }
 }
 
-void ClearHttpCacheInIO(
+void DoCacheActionInIO(
     const scoped_refptr<net::URLRequestContextGetter>& context_getter,
+    Session::CacheAction action,
     const net::CompletionCallback& callback) {
   auto request_context = context_getter->GetURLRequestContext();
   auto http_cache = request_context->http_transaction_factory()->GetCache();
@@ -224,7 +255,7 @@ void ClearHttpCacheInIO(
   using BackendPtr = disk_cache::Backend*;
   BackendPtr* backend_ptr = new BackendPtr(nullptr);
   net::CompletionCallback on_get_backend =
-      base::Bind(&OnGetBackend, base::Owned(backend_ptr), callback);
+      base::Bind(&OnGetBackend, base::Owned(backend_ptr), action, callback);
   int rv = http_cache->GetBackend(backend_ptr, on_get_backend);
   if (rv != net::ERR_IO_PENDING)
     on_get_backend.Run(net::OK);
@@ -239,6 +270,19 @@ void SetProxyInIO(net::URLRequestContextGetter* getter,
   // Refetches and applies the new pac script if provided.
   proxy_service->ForceReloadProxyConfig();
   RunCallbackInUI(callback);
+}
+
+void ClearHostResolverCacheInIO(
+    const scoped_refptr<net::URLRequestContextGetter>& context_getter,
+    const base::Closure& callback) {
+  auto request_context = context_getter->GetURLRequestContext();
+  auto cache = request_context->host_resolver()->GetHostCache();
+  if (cache) {
+    cache->clear();
+    DCHECK_EQ(0u, cache->size());
+    if (!callback.is_null())
+      RunCallbackInUI(callback);
+  }
 }
 
 }  // namespace
@@ -276,10 +320,12 @@ void Session::ResolveProxy(const GURL& url, ResolveProxyCallback callback) {
   new ResolveProxyHelper(browser_context(), url, callback);
 }
 
-void Session::ClearCache(const net::CompletionCallback& callback) {
+template<Session::CacheAction action>
+void Session::DoCacheAction(const net::CompletionCallback& callback) {
   BrowserThread::PostTask(BrowserThread::IO, FROM_HERE,
-      base::Bind(&ClearHttpCacheInIO,
+      base::Bind(&DoCacheActionInIO,
                  make_scoped_refptr(browser_context_->GetRequestContext()),
+                 action,
                  callback));
 }
 
@@ -299,6 +345,12 @@ void Session::ClearStorageData(mate::Arguments* args) {
       options.storage_types, options.quota_types, options.origin,
       content::StoragePartition::OriginMatcherFunction(),
       base::Time(), base::Time::Max(), callback);
+}
+
+void Session::FlushStorageData() {
+  auto storage_partition =
+      content::BrowserContext::GetStoragePartition(browser_context(), nullptr);
+  storage_partition->Flush();
 }
 
 void Session::SetProxy(const net::ProxyConfig& config,
@@ -361,6 +413,28 @@ void Session::SetCertVerifyProc(v8::Local<v8::Value> val,
   browser_context_->cert_verifier()->SetVerifyProc(proc);
 }
 
+void Session::SetPermissionRequestHandler(v8::Local<v8::Value> val,
+                                          mate::Arguments* args) {
+  AtomPermissionManager::RequestHandler handler;
+  if (!(val->IsNull() || mate::ConvertFromV8(args->isolate(), val, &handler))) {
+    args->ThrowError("Must pass null or function");
+    return;
+  }
+  auto permission_manager = static_cast<AtomPermissionManager*>(
+      browser_context()->GetPermissionManager());
+  permission_manager->SetPermissionRequestHandler(handler);
+}
+
+void Session::ClearHostResolverCache(mate::Arguments* args) {
+  base::Closure callback;
+  args->GetNext(&callback);
+
+  BrowserThread::PostTask(BrowserThread::IO, FROM_HERE,
+      base::Bind(&ClearHostResolverCacheInIO,
+                 make_scoped_refptr(browser_context_->GetRequestContext()),
+                 callback));
+}
+
 v8::Local<v8::Value> Session::Cookies(v8::Isolate* isolate) {
   if (cookies_.IsEmpty()) {
     auto handle = atom::api::Cookies::Create(isolate, browser_context());
@@ -403,13 +477,18 @@ void Session::BuildPrototype(v8::Isolate* isolate,
   mate::ObjectTemplateBuilder(isolate, prototype)
       .MakeDestroyable()
       .SetMethod("resolveProxy", &Session::ResolveProxy)
-      .SetMethod("clearCache", &Session::ClearCache)
+      .SetMethod("getCacheSize", &Session::DoCacheAction<CacheAction::STATS>)
+      .SetMethod("clearCache", &Session::DoCacheAction<CacheAction::CLEAR>)
       .SetMethod("clearStorageData", &Session::ClearStorageData)
+      .SetMethod("flushStorageData", &Session::FlushStorageData)
       .SetMethod("setProxy", &Session::SetProxy)
       .SetMethod("setDownloadPath", &Session::SetDownloadPath)
       .SetMethod("enableNetworkEmulation", &Session::EnableNetworkEmulation)
       .SetMethod("disableNetworkEmulation", &Session::DisableNetworkEmulation)
       .SetMethod("setCertificateVerifyProc", &Session::SetCertVerifyProc)
+      .SetMethod("setPermissionRequestHandler",
+                 &Session::SetPermissionRequestHandler)
+      .SetMethod("clearHostResolverCache", &Session::ClearHostResolverCache)
       .SetProperty("cookies", &Session::Cookies)
       .SetProperty("webRequest", &Session::WebRequest);
 }

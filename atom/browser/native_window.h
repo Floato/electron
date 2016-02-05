@@ -105,13 +105,13 @@ class NativeWindow : public base::SupportsUserData,
   virtual bool IsMinimized() = 0;
   virtual void SetFullScreen(bool fullscreen) = 0;
   virtual bool IsFullscreen() const = 0;
-  virtual void SetBounds(const gfx::Rect& bounds) = 0;
+  virtual void SetBounds(const gfx::Rect& bounds, bool animate = false) = 0;
   virtual gfx::Rect GetBounds() = 0;
-  virtual void SetSize(const gfx::Size& size);
+  virtual void SetSize(const gfx::Size& size, bool animate = false);
   virtual gfx::Size GetSize();
-  virtual void SetPosition(const gfx::Point& position);
+  virtual void SetPosition(const gfx::Point& position, bool animate = false);
   virtual gfx::Point GetPosition();
-  virtual void SetContentSize(const gfx::Size& size);
+  virtual void SetContentSize(const gfx::Size& size, bool animate = false);
   virtual gfx::Size GetContentSize();
   virtual void SetSizeConstraints(
       const extensions::SizeConstraints& size_constraints);
@@ -125,6 +125,16 @@ class NativeWindow : public base::SupportsUserData,
   virtual gfx::Size GetMaximumSize();
   virtual void SetResizable(bool resizable) = 0;
   virtual bool IsResizable() = 0;
+  virtual void SetMovable(bool movable) = 0;
+  virtual bool IsMovable() = 0;
+  virtual void SetMinimizable(bool minimizable) = 0;
+  virtual bool IsMinimizable() = 0;
+  virtual void SetMaximizable(bool maximizable) = 0;
+  virtual bool IsMaximizable() = 0;
+  virtual void SetFullScreenable(bool fullscreenable) = 0;
+  virtual bool IsFullScreenable() = 0;
+  virtual void SetClosable(bool closable) = 0;
+  virtual bool IsClosable() = 0;
   virtual void SetAlwaysOnTop(bool top) = 0;
   virtual bool IsAlwaysOnTop() = 0;
   virtual void Center() = 0;
@@ -135,6 +145,8 @@ class NativeWindow : public base::SupportsUserData,
   virtual void SetKiosk(bool kiosk) = 0;
   virtual bool IsKiosk() = 0;
   virtual void SetBackgroundColor(const std::string& color_name) = 0;
+  virtual void SetHasShadow(bool has_shadow) = 0;
+  virtual bool HasShadow() = 0;
   virtual void SetRepresentedFilename(const std::string& filename);
   virtual std::string GetRepresentedFilename();
   virtual void SetDocumentEdited(bool edited);
@@ -143,6 +155,7 @@ class NativeWindow : public base::SupportsUserData,
   virtual void SetMenu(ui::MenuModel* menu);
   virtual bool HasModalDialog();
   virtual gfx::NativeWindow GetNativeWindow() = 0;
+  virtual gfx::AcceleratedWidget GetAcceleratedWidget() = 0;
 
   // Taskbar/Dock APIs.
   virtual void SetProgressBar(double progress) = 0;
@@ -204,6 +217,8 @@ class NativeWindow : public base::SupportsUserData,
   void NotifyWindowMove();
   void NotifyWindowResize();
   void NotifyWindowMoved();
+  void NotifyWindowScrollTouchBegin();
+  void NotifyWindowScrollTouchEnd();
   void NotifyWindowEnterFullScreen();
   void NotifyWindowLeaveFullScreen();
   void NotifyWindowEnterHtmlFullScreen();
@@ -263,6 +278,9 @@ class NativeWindow : public base::SupportsUserData,
   void RenderViewCreated(content::RenderViewHost* render_view_host) override;
   void BeforeUnloadDialogCancelled() override;
   bool OnMessageReceived(const IPC::Message& message) override;
+
+  // Parse hex color like "#FFF" or "#EFEFEF"
+  SkColor ParseHexColor(const std::string& name);
 
  private:
   // Schedule a notification unresponsive event.

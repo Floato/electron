@@ -8,21 +8,26 @@ namespace atom {
 
 namespace options {
 
-const char kTitle[]      = "title";
-const char kIcon[]       = "icon";
-const char kFrame[]      = "frame";
-const char kShow[]       = "show";
-const char kCenter[]     = "center";
-const char kX[]          = "x";
-const char kY[]          = "y";
-const char kWidth[]      = "width";
-const char kHeight[]     = "height";
-const char kMinWidth[]   = "minWidth";
-const char kMinHeight[]  = "minHeight";
-const char kMaxWidth[]   = "maxWidth";
-const char kMaxHeight[]  = "maxHeight";
-const char kResizable[]  = "resizable";
-const char kFullscreen[] = "fullscreen";
+const char kTitle[]          = "title";
+const char kIcon[]           = "icon";
+const char kFrame[]          = "frame";
+const char kShow[]           = "show";
+const char kCenter[]         = "center";
+const char kX[]              = "x";
+const char kY[]              = "y";
+const char kWidth[]          = "width";
+const char kHeight[]         = "height";
+const char kMinWidth[]       = "minWidth";
+const char kMinHeight[]      = "minHeight";
+const char kMaxWidth[]       = "maxWidth";
+const char kMaxHeight[]      = "maxHeight";
+const char kResizable[]      = "resizable";
+const char kMovable[]        = "movable";
+const char kMinimizable[]    = "minimizable";
+const char kMaximizable[]    = "maximizable";
+const char kFullScreenable[] = "fullscreenable";
+const char kClosable[]       = "closable";
+const char kFullscreen[]     = "fullscreen";
 
 // Whether the window should show in taskbar.
 const char kSkipTaskbar[] = "skipTaskbar";
@@ -67,6 +72,9 @@ const char kStandardWindow[] = "standardWindow";
 // Default browser window background color.
 const char kBackgroundColor[] = "backgroundColor";
 
+// Whether the window should have a shadow.
+const char kHasShadow[] = "hasShadow";
+
 // The WebPreferences.
 const char kWebPreferences[] = "webPreferences";
 
@@ -85,20 +93,18 @@ const char kNodeIntegration[] = "nodeIntegration";
 // Instancd ID of guest WebContents.
 const char kGuestInstanceID[] = "guestInstanceId";
 
-// Set page visiblity to always visible.
-const char kPageVisibility[] = "pageVisibility";
-
 // Enable DirectWrite on Windows.
 const char kDirectWrite[] = "directWrite";
-
-// Opener window's ID.
-const char kOpenerID[] = "openerId";
 
 // Web runtime features.
 const char kExperimentalFeatures[]       = "experimentalFeatures";
 const char kExperimentalCanvasFeatures[] = "experimentalCanvasFeatures";
-const char kOverlayScrollbars[]          = "overlayScrollbars";
-const char kSharedWorker[]               = "sharedWorker";
+
+// Opener window's ID.
+const char kOpenerID[] = "openerId";
+
+// Enable blink features.
+const char kBlinkFeatures[] = "blinkFeatures";
 
 }  // namespace options
 
@@ -141,11 +147,6 @@ const char kPreloadScript[]              = "preload";
 const char kPreloadURL[]                 = "preload-url";
 const char kNodeIntegration[]            = "node-integration";
 const char kGuestInstanceID[]            = "guest-instance-id";
-const char kExperimentalFeatures[]       = "experimental-features";
-const char kExperimentalCanvasFeatures[] = "experimental-canvas-features";
-const char kOverlayScrollbars[]          = "overlay-scrollbars";
-const char kSharedWorker[]               = "shared-worker";
-const char kPageVisibility[]             = "page-visiblity";
 const char kOpenerID[]                   = "opener-id";
 
 // Widevine options

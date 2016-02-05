@@ -42,12 +42,22 @@ class NativeWindowMac : public NativeWindow {
   bool IsMinimized() override;
   void SetFullScreen(bool fullscreen) override;
   bool IsFullscreen() const override;
-  void SetBounds(const gfx::Rect& bounds) override;
+  void SetBounds(const gfx::Rect& bounds, bool animate = false) override;
   gfx::Rect GetBounds() override;
   void SetContentSizeConstraints(
       const extensions::SizeConstraints& size_constraints) override;
   void SetResizable(bool resizable) override;
   bool IsResizable() override;
+  void SetMovable(bool movable) override;
+  bool IsMovable() override;
+  void SetMinimizable(bool minimizable) override;
+  bool IsMinimizable() override;
+  void SetMaximizable(bool maximizable) override;
+  bool IsMaximizable() override;
+  void SetFullScreenable(bool fullscreenable) override;
+  bool IsFullScreenable() override;
+  void SetClosable(bool closable) override;
+  bool IsClosable() override;
   void SetAlwaysOnTop(bool top) override;
   bool IsAlwaysOnTop() override;
   void Center() override;
@@ -58,6 +68,8 @@ class NativeWindowMac : public NativeWindow {
   void SetKiosk(bool kiosk) override;
   bool IsKiosk() override;
   void SetBackgroundColor(const std::string& color_name) override;
+  void SetHasShadow(bool has_shadow) override;
+  bool HasShadow() override;
   void SetRepresentedFilename(const std::string& filename) override;
   std::string GetRepresentedFilename() override;
   void SetDocumentEdited(bool edited) override;
@@ -65,6 +77,7 @@ class NativeWindowMac : public NativeWindow {
   void SetIgnoreMouseEvents(bool ignore) override;
   bool HasModalDialog() override;
   gfx::NativeWindow GetNativeWindow() override;
+  gfx::AcceleratedWidget GetAcceleratedWidget() override;
   void SetProgressBar(double progress) override;
   void SetOverlayIcon(const gfx::Image& overlay,
                       const std::string& description) override;
@@ -107,8 +120,15 @@ class NativeWindowMac : public NativeWindow {
   // whehter we can drag.
   void UpdateDraggableRegionViews(const std::vector<DraggableRegion>& regions);
 
+  // Set the attribute of NSWindow while work around a bug of zo0m button.
+  void SetStyleMask(bool on, NSUInteger flag);
+  void SetCollectionBehavior(bool on, NSUInteger flag);
+
   base::scoped_nsobject<AtomNSWindow> window_;
   base::scoped_nsobject<AtomNSWindowDelegate> window_delegate_;
+
+  // Event monitor for scroll wheel event.
+  id wheel_event_monitor_;
 
   // The view that will fill the whole frameless window.
   base::scoped_nsobject<FullSizeContentView> content_view_;

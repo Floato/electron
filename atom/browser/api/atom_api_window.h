@@ -65,6 +65,8 @@ class Window : public mate::TrackableObject<Window>,
   void OnWindowResize() override;
   void OnWindowMove() override;
   void OnWindowMoved() override;
+  void OnWindowScrollTouchBegin() override;
+  void OnWindowScrollTouchEnd() override;
   void OnWindowEnterFullScreen() override;
   void OnWindowLeaveFullScreen() override;
   void OnWindowEnterHtmlFullScreen() override;
@@ -94,11 +96,11 @@ class Window : public mate::TrackableObject<Window>,
   bool IsMinimized();
   void SetFullScreen(bool fullscreen);
   bool IsFullscreen();
-  void SetBounds(const gfx::Rect& bounds);
+  void SetBounds(const gfx::Rect& bounds, mate::Arguments* args);
   gfx::Rect GetBounds();
-  void SetSize(int width, int height);
+  void SetSize(int width, int height, mate::Arguments* args);
   std::vector<int> GetSize();
-  void SetContentSize(int width, int height);
+  void SetContentSize(int width, int height, mate::Arguments* args);
   std::vector<int> GetContentSize();
   void SetMinimumSize(int width, int height);
   std::vector<int> GetMinimumSize();
@@ -106,10 +108,20 @@ class Window : public mate::TrackableObject<Window>,
   std::vector<int> GetMaximumSize();
   void SetResizable(bool resizable);
   bool IsResizable();
+  void SetMovable(bool movable);
+  bool IsMovable();
+  void SetMinimizable(bool minimizable);
+  bool IsMinimizable();
+  void SetMaximizable(bool maximizable);
+  bool IsMaximizable();
+  void SetFullScreenable(bool fullscreenable);
+  bool IsFullScreenable();
+  void SetClosable(bool closable);
+  bool IsClosable();
   void SetAlwaysOnTop(bool top);
   bool IsAlwaysOnTop();
   void Center();
-  void SetPosition(int x, int y);
+  void SetPosition(int x, int y, mate::Arguments* args);
   std::vector<int> GetPosition();
   void SetTitle(const std::string& title);
   std::string GetTitle();
@@ -118,6 +130,8 @@ class Window : public mate::TrackableObject<Window>,
   void SetKiosk(bool kiosk);
   bool IsKiosk();
   void SetBackgroundColor(const std::string& color_name);
+  void SetHasShadow(bool has_shadow);
+  bool HasShadow();
   void FocusOnWebView();
   void BlurWebView();
   bool IsWebViewFocused();
@@ -137,6 +151,7 @@ class Window : public mate::TrackableObject<Window>,
   void SetMenuBarVisibility(bool visible);
   bool IsMenuBarVisible();
   void SetAspectRatio(double aspect_ratio, mate::Arguments* args);
+  v8::Local<v8::Value> GetNativeWindowHandle();
 
 #if defined(OS_WIN)
   typedef base::Callback<void(v8::Local<v8::Value>,

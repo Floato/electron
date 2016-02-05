@@ -13,17 +13,20 @@
 #include "atom/browser/net/atom_url_request_job_factory.h"
 #include "atom/browser/net/asar/asar_protocol_handler.h"
 #include "atom/browser/net/http_protocol_handler.h"
+#include "atom/browser/atom_permission_manager.h"
 #include "atom/browser/web_view_manager.h"
 #include "atom/common/atom_version.h"
 #include "atom/common/chrome_version.h"
 #include "atom/common/options_switches.h"
 #include "base/command_line.h"
 #include "base/files/file_path.h"
+#include "base/path_service.h"
 #include "base/prefs/pref_registry_simple.h"
 #include "base/strings/string_util.h"
 #include "base/strings/stringprintf.h"
 #include "base/threading/sequenced_worker_pool.h"
 #include "base/threading/worker_pool.h"
+#include "chrome/common/chrome_paths.h"
 #include "chrome/common/pref_names.h"
 #include "content/public/browser/browser_thread.h"
 #include "content/public/common/url_constants.h"
@@ -167,6 +170,12 @@ content::BrowserPluginGuestManager* AtomBrowserContext::GetGuestManager() {
   return guest_manager_.get();
 }
 
+content::PermissionManager* AtomBrowserContext::GetPermissionManager() {
+  if (!permission_manager_.get())
+    permission_manager_.reset(new AtomPermissionManager);
+  return permission_manager_.get();
+}
+
 scoped_ptr<net::CertVerifier> AtomBrowserContext::CreateCertVerifier() {
   DCHECK(!cert_verifier_);
   cert_verifier_ = new AtomCertVerifier;
@@ -180,8 +189,10 @@ net::SSLConfigService* AtomBrowserContext::CreateSSLConfigService() {
 void AtomBrowserContext::RegisterPrefs(PrefRegistrySimple* pref_registry) {
   pref_registry->RegisterFilePathPref(prefs::kSelectFileLastDirectory,
                                       base::FilePath());
+  base::FilePath download_dir;
+  PathService::Get(chrome::DIR_DEFAULT_DOWNLOADS, &download_dir);
   pref_registry->RegisterFilePathPref(prefs::kDownloadDefaultDirectory,
-                                      base::FilePath());
+                                      download_dir);
 }
 
 bool AtomBrowserContext::AllowNTLMCredentialsForDomain(const GURL& origin) {

@@ -169,7 +169,7 @@ if (process.platform == 'darwin') {
       },
       {
         label: 'Hide Others',
-        accelerator: 'Command+Shift+H',
+        accelerator: 'Command+Alt+H',
         role: 'hideothers'
       },
       {
@@ -198,7 +198,7 @@ if (process.platform == 'darwin') {
   );
 }
 
-menu = Menu.buildFromTemplate(template);
+var menu = Menu.buildFromTemplate(template);
 Menu.setApplicationMenu(menu);
 ```
 
@@ -237,15 +237,18 @@ Generally, the `template` is just an array of `options` for constructing a
 You can also attach other fields to the element of the `template` and they
 will become properties of the constructed menu items.
 
-### `Menu.popup([browserWindow, x, y])`
+### `Menu.popup([browserWindow, x, y, positioningItem])`
 
-* `browserWindow` BrowserWindow (optional)
-* `x` Number (optional)
-* `y` Number (**required** if `x` is used)
+* `browserWindow` BrowserWindow (optional) - Default is `null`.
+* `x` Number (optional) - Default is -1.
+* `y` Number (**required** if `x` is used) - Default is -1.
+* `positioningItem` Number (optional) _OS X_ - The index of the menu item to
+  be positioned under the mouse cursor at the specified coordinates. Default is
+  -1.
 
-Pops up this menu as a context menu in the `browserWindow`. You
-can optionally provide a `x,y` coordinate to place the menu at, otherwise it
-will be placed at the current mouse cursor position.
+Pops up this menu as a context menu in the `browserWindow`. You can optionally
+provide a `x, y` coordinate to place the menu at, otherwise it will be placed
+at the current mouse cursor position.
 
 ### `Menu.append(menuItem)`
 
@@ -293,13 +296,18 @@ no matter what label you set. To change it you have to change your app's name
 by modifying your app bundle's `Info.plist` file. See [About Information
 Property List Files][AboutInformationPropertyListFiles] for more information.
 
+## Setting Menu for Specific Browser Window (*Linux* *Windows*)
+
+The [`setMenu` method][setMenu] of browser windows can set the menu of certain
+browser window.
+
 ## Menu Item Position
 
 You can make use of `position` and `id` to control how the item will be placed
 when building a menu with `Menu.buildFromTemplate`.
 
 The `position` attribute of `MenuItem` has the form `[placement]=[id]`, where
-placement is one of `before`, `after`, or `endof` and `id` is the unique ID of
+`placement` is one of `before`, `after`, or `endof` and `id` is the unique ID of
 an existing item in the menu:
 
 * `before` - Inserts this item before the id referenced item. If the
@@ -368,3 +376,5 @@ Menu:
 ```
 
 [AboutInformationPropertyListFiles]: https://developer.apple.com/library/ios/documentation/general/Reference/InfoPlistKeyReference/Articles/AboutInformationPropertyListFiles.html
+[setMenu]:
+https://github.com/atom/electron/blob/master/docs/api/browser-window.md#winsetmenumenu-linux-windows

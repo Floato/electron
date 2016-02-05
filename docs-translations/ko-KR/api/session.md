@@ -158,6 +158,13 @@ session.defaultSession.cookies.set(cookie, function(error) {
 `url`과 `name`에 일치하는 쿠키를 삭제합니다. 작업이 완료되면 `callback`이
 `callback()` 형식으로 호출됩니다.
 
+#### `ses.getCacheSize(callback)`
+
+* `callback` Function
+  * `size` Integer - 바이트로 표현된 캐시 크기
+
+세션의 현재 캐시 크기를 반환합니다.
+
 #### `ses.clearCache(callback)`
 
 * `callback` Function - 작업이 완료되면 호출됩니다.
@@ -178,46 +185,48 @@ session.defaultSession.cookies.set(cookie, function(error) {
 
 웹 스토리지의 데이터를 비웁니다.
 
+#### `ses.flushStorageData()`
+
+디스크에 사용되지 않은 DOMStorage 데이터를 모두 덮어씌웁니다.
+
 #### `ses.setProxy(config, callback)`
 
-* `config` String
+* `config` Object
+  * `pacScript` String - PAC 파일과 관련된 URL입니다.
+  * `proxyRules` String - 사용할 프록시의 규칙을 나타냅니다.
 * `callback` Function - 작업이 완료되면 호출됩니다.
 
-세션에 사용할 프록시 `config`를 분석하고 프록시를 적용합니다.
+프록시 설정을 적용합니다.
 
-세션에 사용할 프록시는 `config`가 PAC 주소일 경우 그대로 적용하고, 다른 형식일 경우
-다음 규칙에 따라 적용합니다.
+`pacScript`와 `proxyRules`이 같이 제공되면 `proxyRules` 옵션은 무시되며 `pacScript`
+컨픽만 적용됩니다.
+
+`proxyRules`는 다음과 같은 규칙을 따릅니다:
 
 ```
-config = scheme-proxies[";"<scheme-proxies>]
-scheme-proxies = [<url-scheme>"="]<proxy-uri-list>
-url-scheme = "http" | "https" | "ftp" | "socks"
-proxy-uri-list = <proxy-uri>[","<proxy-uri-list>]
-proxy-uri = [<proxy-scheme>"://"]<proxy-host>[":"<proxy-port>]
-
-  예시:
-       "http=foopy:80;ftp=foopy2"  -- http:// URL에 "foopy:80" HTTP 프록시를
-                                      사용합니다. "foopy2:80" 는 ftp:// URL에
-                                      사용됩니다.
-       "foopy:80"                  -- 모든 URL에 "foopy:80" 프록시를 사용합니다.
-       "foopy:80,bar,direct://"    -- 모든 URL에 "foopy:80" HTTP 프록시를
-                                      사용합니다. 문제가 발생하여 "foopy:80"를
-                                      사용할 수 없는 경우 "bar"를 대신 사용하여
-                                      장애를 복구하며 그 다음 문제가 생긴 경우
-                                      프록시를 사용하지 않습니다.
-       "socks4://foopy"            -- 모든 URL에 "foopy:1000" SOCKS v4 프록시를
-                                      사용합니다.
-       "http=foopy,socks5://bar.com -- http:// URL에 "foopy" HTTP 프록시를
-                                       사용합니다. 문제가 발생하여 "foopy"를
-                                       사용할 수 없는 경우 SOCKS5 "bar.com"
-                                       프록시를 대신 사용합니다.
-       "http=foopy,direct://       -- http:// URL에 "foopy" HTTP 프록시를
-                                      사용합니다. 그리고 문제가 발생하여 "foopy"를
-                                      사용할 수 없는 경우 프록시를 사용하지 않습니다.
-       "http=foopy;socks=foopy2   --  http:// URL에 "foopy" HTTP 프록시를
-                                      사용합니다. 그리고 "socks4://foopy2"
-                                      프록시를 다른 모든 URL에 사용합니다.
+proxyRules = schemeProxies[";"<schemeProxies>]
+schemeProxies = [<urlScheme>"="]<proxyURIList>
+urlScheme = "http" | "https" | "ftp" | "socks"
+proxyURIList = <proxyURL>[","<proxyURIList>]
+proxyURL = [<proxyScheme>"://"]<proxyHost>[":"<proxyPort>]
 ```
+
+예시:
+
+* `http=foopy:80;ftp=foopy2` - http:// URL에 `foopy:80` HTTP 프록시를 사용합니다.
+  `foopy2:80` 는 ftp:// URL에 사용됩니다.
+* `foopy:80` - 모든 URL에 `foopy:80` 프록시를 사용합니다.
+* `foopy:80,bar,direct://` - 모든 URL에 `foopy:80` HTTP 프록시를 사용합니다.
+  문제가 발생하여 `foopy:80`를 사용할 수 없는 경우 `bar`를 대신 사용하여 장애를
+  복구하며 그 다음 문제가 생긴 경우 프록시를 사용하지 않습니다.
+* `socks4://foopy` - 모든 URL에 `foopy:1000` SOCKS v4 프록시를 사용합니다.
+* `http=foopy,socks5://bar.com` - http:// URL에 `foopy` HTTP 프록시를 사용합니다.
+  문제가 발생하여 `foopy`를 사용할 수 없는 경우 SOCKS5 `bar.com` 프록시를 대신
+  사용합니다.
+*  `http=foopy,direct://` - http:// URL에 `foopy` HTTP 프록시를 사용합니다. 그리고
+  문제가 발생하여 `foopy`를 사용할 수 없는 경우 프록시를 사용하지 않습니다.
+* `http=foopy;socks=foopy2` - http:// URL에 `foopy` HTTP 프록시를 사용합니다.
+  그리고 `socks4://foopy2` 프록시를 다른 모든 URL에 사용합니다.
 
 ### `app.resolveProxy(url, callback)`
 
@@ -279,6 +288,30 @@ myWindow.webContents.session.setCertificateVerifyProc(function(hostname, cert, c
    callback(false);
 });
 ```
+#### `ses.setPermissionRequestHandler(handler)`
+
+* `handler` Function
+  * `webContents` Object - [WebContents](web-contents.md) 권한을 요청.
+  * `permission`  String - 'media', 'geolocation', 'notifications',
+    'midiSysex'의 나열.
+  * `callback`  Function - 권한 허용 및 거부.
+
+`session`의 권한 요청에 응답을 하는데 사용하는 핸들러를 설정합니다.
+`callback('granted')`를 호출하면 권한 제공을 허용하고 `callback('denied')`를
+호출하면 권한 제공을 거부합니다.
+
+```javascript
+session.fromPartition(partition).setPermissionRequestHandler(function(webContents, permission, callback) {
+  if (webContents.getURL() === host) {
+    if (permission == "notifications") {
+      callback(); // 거부됨.
+      return;
+    }
+  }
+
+  callback('granted');
+});
+```
 
 #### `ses.webRequest`
 
@@ -321,6 +354,14 @@ session.defaultSession.webRequest.onBeforeSendHeaders(filter, function(details, 
   * `method` String
   * `resourceType` String
   * `timestamp` Double
+  * `uploadData` Array (optional)
+* `callback` Function
+
+`uploadData`는 `data` 객체의 배열입니다:
+
+* `data` Object
+  * `bytes` Buffer - 전송될 컨텐츠.
+  * `file` String - 업로드될 파일의 경로.
 
 `callback`은 `response` 객체와 함께 호출되어야 합니다:
 
@@ -345,6 +386,7 @@ HTTP 요청을 보내기 전 요청 헤더를 사용할 수 있을 때 `listener
   * `resourceType` String
   * `timestamp` Double
   * `requestHeaders` Object
+* `callback` Function
 
 `callback`은 `response` 객체와 함께 호출되어야 합니다:
 
@@ -387,6 +429,7 @@ HTTP 요청을 보내기 전 요청 헤더를 사용할 수 있을 때 `listener
   * `statusLine` String
   * `statusCode` Integer
   * `responseHeaders` Object
+* `callback` Function
 
 `callback`은 `response` 객체와 함께 호출되어야 합니다:
 

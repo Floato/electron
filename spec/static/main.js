@@ -28,6 +28,9 @@ app.commandLine.appendSwitch('disable-renderer-backgrounding');
 // sure we can reproduce it in renderer process.
 process.stdout;
 
+// Access console to reproduce #3482.
+console;
+
 ipcMain.on('message', function(event, arg) {
   event.sender.send('message', arg);
 });
@@ -93,29 +96,41 @@ app.on('ready', function() {
       message: 'Window is not responsing',
       detail: 'The window is not responding. Would you like to force close it or just keep waiting?'
     });
-    if (chosen == 0) window.destroy();
+    if (chosen === 0) window.destroy();
   });
 
   // For session's download test, listen 'will-download' event in browser, and
   // reply the result to renderer for verifying
   var downloadFilePath = path.join(__dirname, '..', 'fixtures', 'mock.pdf');
-  ipcMain.on('set-download-option', function(event, need_cancel) {
-    window.webContents.session.once('will-download',
-        function(e, item, webContents) {
-          item.setSavePath(downloadFilePath);
-          item.on('done', function(e, state) {
-            window.webContents.send('download-done',
-                                    state,
-                                    item.getURL(),
-                                    item.getMimeType(),
-                                    item.getReceivedBytes(),
-                                    item.getTotalBytes(),
-                                    item.getContentDisposition(),
-                                    item.getFilename());
-          });
-          if (need_cancel)
-            item.cancel();
+  ipcMain.on('set-download-option', function(event, need_cancel, prevent_default) {
+    window.webContents.session.once('will-download', function(e, item, webContents) {
+      if (prevent_default) {
+        e.preventDefault();
+        const url = item.getURL();
+        const filename = item.getFilename();
+        setImmediate(function() {
+          try {
+            item.getURL();
+          } catch(err) {
+            window.webContents.send('download-error', url, filename, err.message);
+          }
         });
+      } else {
+        item.setSavePath(downloadFilePath);
+        item.on('done', function(e, state) {
+          window.webContents.send('download-done',
+                                  state,
+                                  item.getURL(),
+                                  item.getMimeType(),
+                                  item.getReceivedBytes(),
+                                  item.getTotalBytes(),
+                                  item.getContentDisposition(),
+                                  item.getFilename());
+        });
+        if (need_cancel)
+          item.cancel();
+      }
+    });
     event.returnValue = "done";
   });
 });

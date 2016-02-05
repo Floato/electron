@@ -32,10 +32,10 @@
 #include "ipc/ipc_message_macros.h"
 #include "native_mate/dictionary.h"
 #include "ui/gfx/codec/png_codec.h"
-#include "ui/gfx/geometry/size_conversions.h"
 #include "ui/gfx/geometry/point.h"
 #include "ui/gfx/geometry/rect.h"
 #include "ui/gfx/geometry/size.h"
+#include "ui/gfx/geometry/size_conversions.h"
 #include "ui/gfx/screen.h"
 #include "ui/gl/gpu_switching_manager.h"
 
@@ -116,11 +116,19 @@ void NativeWindow::InitFromOptions(const mate::Dictionary& options) {
     SetSizeConstraints(size_constraints);
   }
 #if defined(OS_WIN) || defined(USE_X11)
-  bool resizable;
-  if (options.Get(options::kResizable, &resizable)) {
-    SetResizable(resizable);
+  bool closable;
+  if (options.Get(options::kClosable, &closable)) {
+    SetClosable(closable);
   }
 #endif
+  bool movable;
+  if (options.Get(options::kMovable, &movable)) {
+    SetMovable(movable);
+  }
+  bool has_shadow;
+  if (options.Get(options::kHasShadow, &has_shadow)) {
+    SetHasShadow(has_shadow);
+  }
   bool top;
   if (options.Get(options::kAlwaysOnTop, &top) && top) {
     SetAlwaysOnTop(true);
@@ -154,24 +162,24 @@ void NativeWindow::InitFromOptions(const mate::Dictionary& options) {
     Show();
 }
 
-void NativeWindow::SetSize(const gfx::Size& size) {
-  SetBounds(gfx::Rect(GetPosition(), size));
+void NativeWindow::SetSize(const gfx::Size& size, bool animate) {
+  SetBounds(gfx::Rect(GetPosition(), size), animate);
 }
 
 gfx::Size NativeWindow::GetSize() {
   return GetBounds().size();
 }
 
-void NativeWindow::SetPosition(const gfx::Point& position) {
-  SetBounds(gfx::Rect(position, GetSize()));
+void NativeWindow::SetPosition(const gfx::Point& position, bool animate) {
+  SetBounds(gfx::Rect(position, GetSize()), animate);
 }
 
 gfx::Point NativeWindow::GetPosition() {
   return GetBounds().origin();
 }
 
-void NativeWindow::SetContentSize(const gfx::Size& size) {
-  SetSize(ContentSizeToWindowSize(size));
+void NativeWindow::SetContentSize(const gfx::Size& size, bool animate) {
+  SetSize(ContentSizeToWindowSize(size), animate);
 }
 
 gfx::Size NativeWindow::GetContentSize() {
@@ -278,22 +286,22 @@ void NativeWindow::CapturePage(const gfx::Rect& rect,
   }
 
   // Capture full page if user doesn't specify a |rect|.
-  const gfx::Rect view_rect = rect.IsEmpty() ? view->GetViewBounds() :
-                                               rect;
+  const gfx::Size view_size = rect.IsEmpty() ? view->GetViewBounds().size() :
+                                               rect.size();
 
   // By default, the requested bitmap size is the view size in screen
   // coordinates.  However, if there's more pixel detail available on the
   // current system, increase the requested bitmap size to capture it all.
-  gfx::Size bitmap_size = view_rect.size();
+  gfx::Size bitmap_size = view_size;
   const gfx::NativeView native_view = view->GetNativeView();
   gfx::Screen* const screen = gfx::Screen::GetScreenFor(native_view);
   const float scale =
       screen->GetDisplayNearestWindow(native_view).device_scale_factor();
   if (scale > 1.0f)
-    bitmap_size = gfx::ScaleToCeiledSize(view_rect.size(), scale);
+    bitmap_size = gfx::ScaleToCeiledSize(view_size, scale);
 
   host->CopyFromBackingStore(
-      view_rect,
+      gfx::Rect(rect.origin(), view_size),
       bitmap_size,
       base::Bind(&NativeWindow::OnCapturePageDone,
                  weak_factory_.GetWeakPtr(),
@@ -442,6 +450,16 @@ void NativeWindow::NotifyWindowEnterFullScreen() {
                     OnWindowEnterFullScreen());
 }
 
+void NativeWindow::NotifyWindowScrollTouchBegin() {
+  FOR_EACH_OBSERVER(NativeWindowObserver, observers_,
+                    OnWindowScrollTouchBegin());
+}
+
+void NativeWindow::NotifyWindowScrollTouchEnd() {
+  FOR_EACH_OBSERVER(NativeWindowObserver, observers_,
+                    OnWindowScrollTouchEnd());
+}
+
 void NativeWindow::NotifyWindowLeaveFullScreen() {
   FOR_EACH_OBSERVER(NativeWindowObserver, observers_,
                     OnWindowLeaveFullScreen());
@@ -549,6 +567,29 @@ void NativeWindow::OnCapturePageDone(const CapturePageCallback& callback,
                                      const SkBitmap& bitmap,
                                      content::ReadbackResponse response) {
   callback.Run(bitmap);
+}
+
+SkColor NativeWindow::ParseHexColor(const std::string& name) {
+  auto color = name.substr(1);
+  unsigned length = color.size();
+  SkColor result = (length != 8 ? 0xFF000000 : 0x00000000);
+  unsigned value = 0;
+  if (length != 3 && length != 6 && length != 8)
+    return result;
+  for (unsigned i = 0; i < length; ++i) {
+    if (!base::IsHexDigit(color[i]))
+      return result;
+    value <<= 4;
+    value |= (color[i] < 'A' ? color[i] - '0' : (color[i] - 'A' + 10) & 0xF);
+  }
+  if (length == 6 || length == 8) {
+    result |= value;
+    return result;
+  }
+  result |= (value & 0xF00) << 12 | (value & 0xF00) << 8
+      | (value & 0xF0) << 8 | (value & 0xF0) << 4
+      | (value & 0xF) << 4 | (value & 0xF);
+  return result;
 }
 
 }  // namespace atom

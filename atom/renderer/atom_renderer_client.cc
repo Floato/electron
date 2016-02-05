@@ -9,6 +9,7 @@
 
 #include "atom/common/api/api_messages.h"
 #include "atom/common/api/atom_bindings.h"
+#include "atom/common/api/event_emitter_caller.h"
 #include "atom/common/node_bindings.h"
 #include "atom/common/node_includes.h"
 #include "atom/common/options_switches.h"
@@ -41,44 +42,33 @@ namespace atom {
 
 namespace {
 
-bool IsSwitchEnabled(base::CommandLine* command_line,
-                     const char* switch_string) {
-  return command_line->GetSwitchValueASCII(switch_string) == "true";
-}
-
 // Helper class to forward the messages to the client.
 class AtomRenderFrameObserver : public content::RenderFrameObserver {
  public:
   AtomRenderFrameObserver(content::RenderFrame* frame,
                           AtomRendererClient* renderer_client)
       : content::RenderFrameObserver(frame),
+        world_id_(-1),
         renderer_client_(renderer_client) {}
 
   // content::RenderFrameObserver:
   void DidCreateScriptContext(v8::Handle<v8::Context> context,
                               int extension_group,
-                              int world_id) {
-    renderer_client_->DidCreateScriptContext(
-        render_frame()->GetWebFrame(), context);
+                              int world_id) override {
+    if (world_id_ != -1 && world_id_ != world_id)
+      return;
+    world_id_ = world_id;
+    renderer_client_->DidCreateScriptContext(context);
   }
-
-  bool OnMessageReceived(const IPC::Message& message) {
-    bool handled = true;
-    IPC_BEGIN_MESSAGE_MAP(AtomRenderFrameObserver, message)
-      IPC_MESSAGE_HANDLER(AtomViewMsg_SetZoomLevel, OnSetZoomLevel)
-      IPC_MESSAGE_UNHANDLED(handled = false)
-    IPC_END_MESSAGE_MAP()
-
-    return handled;
-  }
-
-  void OnSetZoomLevel(double level) {
-    auto view = render_frame()->GetWebFrame()->view();
-    if (view)
-      view->setZoomLevel(level);
+  void WillReleaseScriptContext(v8::Local<v8::Context> context,
+                                int world_id) override {
+    if (world_id_ != world_id)
+      return;
+    renderer_client_->WillReleaseScriptContext(context);
   }
 
  private:
+  int world_id_;
   AtomRendererClient* renderer_client_;
 
   DISALLOW_COPY_AND_ASSIGN(AtomRenderFrameObserver);
@@ -95,8 +85,6 @@ AtomRendererClient::~AtomRendererClient() {
 }
 
 void AtomRendererClient::WebKitInitialized() {
-  EnableWebRuntimeFeatures();
-
   blink::WebCustomElement::addEmbedderCustomElementName("webview");
   blink::WebCustomElement::addEmbedderCustomElementName("browserplugin");
 
@@ -131,10 +119,15 @@ void AtomRendererClient::RenderThreadStarted() {
 void AtomRendererClient::RenderFrameCreated(
     content::RenderFrame* render_frame) {
   new PepperHelper(render_frame);
-  new AtomRenderFrameObserver(render_frame, this);
 
   // Allow file scheme to handle service worker by default.
   blink::WebSecurityPolicy::registerURLSchemeAsAllowingServiceWorkers("file");
+
+  // Only insert node integration for the main frame.
+  if (!render_frame->IsMainFrame())
+    return;
+
+  new AtomRenderFrameObserver(render_frame, this);
 }
 
 void AtomRendererClient::RenderViewCreated(content::RenderView* render_view) {
@@ -162,12 +155,7 @@ bool AtomRendererClient::OverrideCreatePlugin(
 }
 
 void AtomRendererClient::DidCreateScriptContext(
-    blink::WebFrame* frame,
     v8::Handle<v8::Context> context) {
-  // Only insert node integration for the main frame.
-  if (frame->parent())
-    return;
-
   // Give the node loop a run to make sure everything is ready.
   node_bindings_->RunMessageLoop();
 
@@ -185,6 +173,12 @@ void AtomRendererClient::DidCreateScriptContext(
   node_bindings_->LoadEnvironment(env);
 }
 
+void AtomRendererClient::WillReleaseScriptContext(
+    v8::Handle<v8::Context> context) {
+  node::Environment* env = node::Environment::GetCurrent(context);
+  mate::EmitEvent(env->isolate(), env->process_object(), "exit");
+}
+
 bool AtomRendererClient::ShouldFork(blink::WebLocalFrame* frame,
                                     const GURL& url,
                                     const std::string& http_method,
@@ -196,7 +190,7 @@ bool AtomRendererClient::ShouldFork(blink::WebLocalFrame* frame,
   // the OpenURLFromTab is triggered, which means form posting would not work,
   // we should solve this by patching Chromium in future.
   *send_referrer = true;
-  return http_method == "GET" && !is_server_redirect;
+  return http_method == "GET";
 }
 
 content::BrowserPluginDelegate* AtomRendererClient::CreateBrowserPluginDelegate(
@@ -208,32 +202,6 @@ content::BrowserPluginDelegate* AtomRendererClient::CreateBrowserPluginDelegate(
   } else {
     return nullptr;
   }
-}
-
-bool AtomRendererClient::ShouldOverridePageVisibilityState(
-    const content::RenderFrame* render_frame,
-    blink::WebPageVisibilityState* override_state) {
-  base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
-
-  if (IsSwitchEnabled(command_line, switches::kPageVisibility)) {
-    *override_state = blink::WebPageVisibilityStateVisible;
-    return true;
-  }
-
-  return false;
-}
-
-void AtomRendererClient::EnableWebRuntimeFeatures() {
-  base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
-
-  if (IsSwitchEnabled(command_line, switches::kExperimentalFeatures))
-    blink::WebRuntimeFeatures::enableExperimentalFeatures(true);
-  if (IsSwitchEnabled(command_line, switches::kExperimentalCanvasFeatures))
-    blink::WebRuntimeFeatures::enableExperimentalCanvasFeatures(true);
-  if (IsSwitchEnabled(command_line, switches::kOverlayScrollbars))
-    blink::WebRuntimeFeatures::enableOverlayScrollbars(true);
-  if (IsSwitchEnabled(command_line, switches::kSharedWorker))
-    blink::WebRuntimeFeatures::enableSharedWorker(true);
 }
 
 void AtomRendererClient::AddKeySystems(

@@ -107,7 +107,6 @@ void TranslateOldOptions(v8::Isolate* isolate, v8::Local<v8::Object> options) {
   }
 }
 
-#if defined(OS_WIN)
 // Converts binary data to Buffer.
 v8::Local<v8::Value> ToBuffer(v8::Isolate* isolate, void* val, int size) {
   auto buffer = node::Buffer::New(isolate, static_cast<char*>(val), size);
@@ -116,7 +115,6 @@ v8::Local<v8::Value> ToBuffer(v8::Isolate* isolate, void* val, int size) {
   else
     return buffer.ToLocalChecked();
 }
-#endif
 
 }  // namespace
 
@@ -227,6 +225,14 @@ void Window::OnWindowEnterFullScreen() {
 
 void Window::OnWindowLeaveFullScreen() {
   Emit("leave-full-screen");
+}
+
+void Window::OnWindowScrollTouchBegin() {
+  Emit("scroll-touch-begin");
+}
+
+void Window::OnWindowScrollTouchEnd() {
+  Emit("scroll-touch-end");
 }
 
 void Window::OnWindowEnterHtmlFullScreen() {
@@ -340,16 +346,20 @@ bool Window::IsFullscreen() {
   return window_->IsFullscreen();
 }
 
-void Window::SetBounds(const gfx::Rect& bounds) {
-  window_->SetBounds(bounds);
+void Window::SetBounds(const gfx::Rect& bounds, mate::Arguments* args) {
+  bool animate = false;
+  args->GetNext(&animate);
+  window_->SetBounds(bounds, animate);
 }
 
 gfx::Rect Window::GetBounds() {
   return window_->GetBounds();
 }
 
-void Window::SetSize(int width, int height) {
-  window_->SetSize(gfx::Size(width, height));
+void Window::SetSize(int width, int height, mate::Arguments* args) {
+  bool animate = false;
+  args->GetNext(&animate);
+  window_->SetSize(gfx::Size(width, height), animate);
 }
 
 std::vector<int> Window::GetSize() {
@@ -360,8 +370,10 @@ std::vector<int> Window::GetSize() {
   return result;
 }
 
-void Window::SetContentSize(int width, int height) {
-  window_->SetContentSize(gfx::Size(width, height));
+void Window::SetContentSize(int width, int height, mate::Arguments* args) {
+  bool animate = false;
+  args->GetNext(&animate);
+  window_->SetContentSize(gfx::Size(width, height), animate);
 }
 
 std::vector<int> Window::GetContentSize() {
@@ -404,6 +416,46 @@ bool Window::IsResizable() {
   return window_->IsResizable();
 }
 
+void Window::SetMovable(bool movable) {
+  window_->SetMovable(movable);
+}
+
+bool Window::IsMovable() {
+  return window_->IsMovable();
+}
+
+void Window::SetMinimizable(bool minimizable) {
+  window_->SetMinimizable(minimizable);
+}
+
+bool Window::IsMinimizable() {
+  return window_->IsMinimizable();
+}
+
+void Window::SetMaximizable(bool maximizable) {
+  window_->SetMaximizable(maximizable);
+}
+
+bool Window::IsMaximizable() {
+  return window_->IsMaximizable();
+}
+
+void Window::SetFullScreenable(bool fullscreenable) {
+  window_->SetFullScreenable(fullscreenable);
+}
+
+bool Window::IsFullScreenable() {
+  return window_->IsFullScreenable();
+}
+
+void Window::SetClosable(bool closable) {
+  window_->SetClosable(closable);
+}
+
+bool Window::IsClosable() {
+  return window_->IsClosable();
+}
+
 void Window::SetAlwaysOnTop(bool top) {
   window_->SetAlwaysOnTop(top);
 }
@@ -416,8 +468,10 @@ void Window::Center() {
   window_->Center();
 }
 
-void Window::SetPosition(int x, int y) {
-  window_->SetPosition(gfx::Point(x, y));
+void Window::SetPosition(int x, int y, mate::Arguments* args) {
+  bool animate = false;
+  args->GetNext(&animate);
+  window_->SetPosition(gfx::Point(x, y), animate);
 }
 
 std::vector<int> Window::GetPosition() {
@@ -454,6 +508,14 @@ bool Window::IsKiosk() {
 
 void Window::SetBackgroundColor(const std::string& color_name) {
   window_->SetBackgroundColor(color_name);
+}
+
+void Window::SetHasShadow(bool has_shadow) {
+  window_->SetHasShadow(has_shadow);
+}
+
+bool Window::HasShadow() {
+  return window_->HasShadow();
 }
 
 void Window::FocusOnWebView() {
@@ -594,6 +656,12 @@ void Window::SetAspectRatio(double aspect_ratio, mate::Arguments* args) {
   window_->SetAspectRatio(aspect_ratio, extra_size);
 }
 
+v8::Local<v8::Value> Window::GetNativeWindowHandle() {
+  gfx::AcceleratedWidget handle = window_->GetAcceleratedWidget();
+  return ToBuffer(
+      isolate(), static_cast<void*>(&handle), sizeof(gfx::AcceleratedWidget));
+}
+
 void Window::SetVisibleOnAllWorkspaces(bool visible) {
   return window_->SetVisibleOnAllWorkspaces(visible);
 }
@@ -634,6 +702,7 @@ void Window::BuildPrototype(v8::Isolate* isolate,
       .SetMethod("setFullScreen", &Window::SetFullScreen)
       .SetMethod("isFullScreen", &Window::IsFullscreen)
       .SetMethod("setAspectRatio", &Window::SetAspectRatio)
+      .SetMethod("getNativeWindowHandle", &Window::GetNativeWindowHandle)
       .SetMethod("getBounds", &Window::GetBounds)
       .SetMethod("setBounds", &Window::SetBounds)
       .SetMethod("getSize", &Window::GetSize)
@@ -646,6 +715,16 @@ void Window::BuildPrototype(v8::Isolate* isolate,
       .SetMethod("getMaximumSize", &Window::GetMaximumSize)
       .SetMethod("setResizable", &Window::SetResizable)
       .SetMethod("isResizable", &Window::IsResizable)
+      .SetMethod("setMovable", &Window::SetMovable)
+      .SetMethod("isMovable", &Window::IsMovable)
+      .SetMethod("setMinimizable", &Window::SetMinimizable)
+      .SetMethod("isMinimizable", &Window::IsMinimizable)
+      .SetMethod("setMaximizable", &Window::SetMaximizable)
+      .SetMethod("isMaximizable", &Window::IsMaximizable)
+      .SetMethod("setFullScreenable", &Window::SetFullScreenable)
+      .SetMethod("isFullScreenable", &Window::IsFullScreenable)
+      .SetMethod("setClosable", &Window::SetClosable)
+      .SetMethod("isClosable", &Window::IsClosable)
       .SetMethod("setAlwaysOnTop", &Window::SetAlwaysOnTop)
       .SetMethod("isAlwaysOnTop", &Window::IsAlwaysOnTop)
       .SetMethod("center", &Window::Center)
@@ -658,6 +737,8 @@ void Window::BuildPrototype(v8::Isolate* isolate,
       .SetMethod("setKiosk", &Window::SetKiosk)
       .SetMethod("isKiosk", &Window::IsKiosk)
       .SetMethod("setBackgroundColor", &Window::SetBackgroundColor)
+      .SetMethod("setHasShadow", &Window::SetHasShadow)
+      .SetMethod("hasShadow", &Window::HasShadow)
       .SetMethod("setRepresentedFilename", &Window::SetRepresentedFilename)
       .SetMethod("getRepresentedFilename", &Window::GetRepresentedFilename)
       .SetMethod("setDocumentEdited", &Window::SetDocumentEdited)

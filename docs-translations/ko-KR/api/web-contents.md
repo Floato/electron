@@ -130,10 +130,38 @@ Returns:
 사용자 또는 페이지가 새로운 페이지로 이동할 때 발생하는 이벤트입니다.
 `window.location` 객체가 변경되거나 사용자가 페이지의 링크를 클릭했을 때 발생합니다.
 
-이 이벤트는 `webContents.loadURL`과 `webContents.back` 같은 API를 이용하여
+이 이벤트는 `webContents.loadURL`과 `webContents.back` 같은 API를 이용한
 프로그램적으로 시작된 탐색에 대해서는 발생하지 않습니다.
 
+이 이벤트는 앵커 링크를 클릭하거나 `window.location.hash`의 값을 변경하는 등의 페이지
+내 탐색시엔 발생하지 않습니다. 대신 `did-navigate-in-page` 이벤트를 사용해야 합니다.
+
 `event.preventDefault()`를 호출하면 탐색을 방지할 수 있습니다.
+
+### Event: 'did-navigate'
+
+Returns:
+
+* `event` Event
+* `url` String
+
+탐색이 완료되면 발생하는 이벤트입니다.
+
+이 이벤트는 앵커 링크를 클릭하거나 `window.location.hash`의 값을 변경하는 등의 페이지
+내 탐색시엔 발생하지 않습니다. 대신 `did-navigate-in-page` 이벤트를 사용해야 합니다.
+
+### Event: 'did-navigate-in-page'
+
+Returns:
+
+* `event` Event
+* `url` String
+
+페이지 내의 탐색이 완료되면 발생하는 이벤트입니다.
+
+페이지 내의 탐색이 발생하면 페이지 URL이 변경되지만 페이지 밖으로의 탐색은 일어나지
+않습니다. 예를 들어 앵커 링크를 클릭했을 때, 또는 DOM `hashchange` 이벤트가 발생했을
+때로 볼 수 있습니다.
 
 ### Event: 'crashed'
 
@@ -250,6 +278,28 @@ Returns:
 <meta name='theme-color' content='#ff0000'>
 ```
 
+### Event: 'cursor-changed'
+
+Returns:
+
+* `event` Event
+* `type` String
+* `image` NativeImage (optional)
+* `scale` Float (optional)
+
+커서 타입이 변경될 때 발생하는 이벤트입니다. `type` 매개변수는 다음 값이 될 수 있습니다:
+`default`, `crosshair`, `pointer`, `text`, `wait`, `help`, `e-resize`, `n-resize`,
+`ne-resize`, `nw-resize`, `s-resize`, `se-resize`, `sw-resize`, `w-resize`,
+`ns-resize`, `ew-resize`, `nesw-resize`, `nwse-resize`, `col-resize`,
+`row-resize`, `m-panning`, `e-panning`, `n-panning`, `ne-panning`, `nw-panning`,
+`s-panning`, `se-panning`, `sw-panning`, `w-panning`, `move`, `vertical-text`,
+`cell`, `context-menu`, `alias`, `progress`, `nodrop`, `copy`, `none`,
+`not-allowed`, `zoom-in`, `zoom-out`, `grab`, `grabbing`, `custom`.
+
+만약 `type` 매개변수가 `custom` 이고 `image` 매개변수가 `NativeImage`를 통한 커스텀
+커서를 지정했을 때, 해당 이미지로 커서가 변경됩니다. 또한 `scale` 매개변수는 이미지의
+크기를 조정합니다.
+
 ## Instance Methods
 
 `webContents`객체는 다음과 같은 인스턴스 메서드들을 가지고 있습니다.
@@ -258,11 +308,11 @@ Returns:
 
 * `url` URL
 * `options` Object (optional), 속성들:
-  * `httpReferrer` String - HTTP Referrer url.
+  * `httpReferrer` String - HTTP 레퍼러 url.
   * `userAgent` String - 요청을 시작한 유저 에이전트.
   * `extraHeaders` String - "\n"로 구분된 Extra 헤더들.
 
-윈도우에 웹 페이지 `url`을 로드합니다. `url`은 `http://` or `file://`과 같은
+윈도우에 웹 페이지 `url`을 로드합니다. `url`은 `http://`, `file://`과 같은
 프로토콜 접두사를 가지고 있어야 합니다. 만약 반드시 http 캐시를 사용하지 않고 로드해야
 하는 경우 `pragma` 헤더를 사용할 수 있습니다.
 
@@ -612,7 +662,7 @@ mainWindow.webContents.on('devtools-opened', function() {
 
 ### `webContents.isDevToolsFocused()`
 
-개발자 도구에 포커스가 가있는지 여부를 반화합니다.
+개발자 도구에 포커스 되어있는지 여부를 반환합니다.
 
 ### `webContents.inspectElement(x, y)`
 
@@ -795,3 +845,73 @@ win.webContents.on('did-finish-load', function() {
 
 **참고:** 사용자가 절대로 이 객체를 저장해서는 안 됩니다. 개발자 도구가 닫혔을 때,
 `null`이 반환될 수 있습니다.
+
+### `webContents.debugger`
+
+디버거 API는 [원격 디버깅 프로토콜][rdp]에 대한 대체 수송자 역할을 합니다.
+
+```javascript
+try {
+  win.webContents.debugger.attach("1.1");
+} catch(err) {
+  console.log("Debugger attach failed : ", err);
+};
+
+win.webContents.debugger.on('detach', function(event, reason) {
+  console.log("Debugger detached due to : ", reason);
+});
+
+win.webContents.debugger.on('message', function(event, method, params) {
+  if (method == "Network.requestWillBeSent") {
+    if (params.request.url == "https://www.github.com")
+      win.webContents.debugger.detach();
+  }
+})
+
+win.webContents.debugger.sendCommand("Network.enable");
+```
+
+#### `webContents.debugger.attach([protocolVersion])`
+
+* `protocolVersion` String (optional) - 요쳥할 디버깅 프로토콜의 버전.
+
+`webContents`에 디버거를 부착합니다.
+
+#### `webContents.debugger.isAttached()`
+
+디버거가 `webContents`에 부착되어 있는지 여부를 반환합니다.
+
+#### `webContents.debugger.detach()`
+
+`webContents`로부터 디버거를 분리시킵니다.
+
+#### `webContents.debugger.sendCommand(method[, commandParams, callback])`
+
+* `method` String - 메서드 이름, 반드시 원격 디버깅 프로토콜에 의해 정의된 메서드중
+  하나가 됩니다.
+* `commandParams` Object (optional) - 요청 매개변수를 표현한 JSON 객체.
+* `callback` Function (optional) - 응답
+  * `error` Object -  커맨드의 실패를 표시하는 에러 메시지.
+  * `result` Object - 원격 디버깅 프로토콜에서 커맨드 설명의 'returns' 속성에 의해
+    정의된 응답
+
+지정한 커맨드를 디버깅 대상에게 전송합니다.
+
+#### Event: 'detach'
+
+* `event` Event
+* `reason` String - 디버거 분리 사유.
+
+디버깅 세션이 종료될 때 발생하는 이벤트입니다. `webContents`가 닫히거나 개발자 도구가
+부착된 `webContents`에 대해 호출될 때 발생합니다.
+
+#### Event: 'message'
+
+* `event` Event
+* `method` String - 메서드 이름.
+* `params` Object - 원격 디버깅 프로토콜의 'parameters' 속성에서 정의된 이벤트
+  매개변수
+
+디버깅 타겟이 관련 이벤트를 발생시킬 때 마다 발생하는 이벤트입니다.
+
+[rdp]: https://developer.chrome.com/devtools/docs/debugger-protocol

@@ -61,13 +61,23 @@ class NativeWindowViews : public NativeWindow,
   bool IsMinimized() override;
   void SetFullScreen(bool fullscreen) override;
   bool IsFullscreen() const override;
-  void SetBounds(const gfx::Rect& bounds) override;
+  void SetBounds(const gfx::Rect& bounds, bool animate) override;
   gfx::Rect GetBounds() override;
   gfx::Size GetContentSize() override;
   void SetContentSizeConstraints(
       const extensions::SizeConstraints& size_constraints) override;
   void SetResizable(bool resizable) override;
   bool IsResizable() override;
+  void SetMovable(bool movable) override;
+  bool IsMovable() override;
+  void SetMinimizable(bool minimizable) override;
+  bool IsMinimizable() override;
+  void SetMaximizable(bool maximizable) override;
+  bool IsMaximizable() override;
+  void SetFullScreenable(bool fullscreenable) override;
+  bool IsFullScreenable() override;
+  void SetClosable(bool closable) override;
+  bool IsClosable() override;
   void SetAlwaysOnTop(bool top) override;
   bool IsAlwaysOnTop() override;
   void Center() override;
@@ -78,6 +88,8 @@ class NativeWindowViews : public NativeWindow,
   void SetKiosk(bool kiosk) override;
   bool IsKiosk() override;
   void SetBackgroundColor(const std::string& color_name) override;
+  void SetHasShadow(bool has_shadow) override;
+  bool HasShadow() override;
   void SetMenu(ui::MenuModel* menu_model) override;
   gfx::NativeWindow GetNativeWindow() override;
   void SetOverlayIcon(const gfx::Image& overlay,
@@ -90,7 +102,7 @@ class NativeWindowViews : public NativeWindow,
   void SetVisibleOnAllWorkspaces(bool visible) override;
   bool IsVisibleOnAllWorkspaces() override;
 
-  gfx::AcceleratedWidget GetAcceleratedWidget();
+  gfx::AcceleratedWidget GetAcceleratedWidget() override;
 
   views::Widget* widget() const { return window_.get(); }
 
@@ -196,7 +208,10 @@ class NativeWindowViews : public NativeWindow,
   accelerator_util::AcceleratorTable accelerator_table_;
 
   bool use_content_size_;
+  bool movable_;
   bool resizable_;
+  bool maximizable_;
+  bool minimizable_;
   std::string title_;
   gfx::Size widget_size_;
 

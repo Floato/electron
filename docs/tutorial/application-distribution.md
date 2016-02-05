@@ -61,8 +61,7 @@ before distributing it to users.
 ### Windows
 
 You can rename `electron.exe` to any name you like, and edit its icon and other
-information with tools like [rcedit](https://github.com/atom/rcedit) or
-[ResEdit](http://www.resedit.net).
+information with tools like [rcedit](https://github.com/atom/rcedit).
 
 ### OS X
 
@@ -118,3 +117,11 @@ a Grunt task has been created that will handle this automatically:
 This task will automatically handle editing the `.gyp` file, building from
 source, then rebuilding your app's native Node modules to match the new
 executable name.
+
+## Packaging Tools
+
+Apart from packaging your app manually, you can also choose to use third party
+packaging tools to do the work for you:
+
+* [electron-packager](https://github.com/maxogden/electron-packager)
+* [electron-builder](https://github.com/loopline-systems/electron-builder)

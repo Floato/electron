@@ -55,12 +55,12 @@ electron/resources/
 ### Windows
 
 你可以将 `electron.exe` 改成任意你喜欢的名字，然后可以使用像
-[rcedit](https://github.com/atom/rcedit) 或者[ResEdit](http://www.resedit.net)
+[rcedit](https://github.com/atom/rcedit)
 编辑它的icon和其他信息。
 
 ### OS X
 
-你可以将 `Electron.app` 改成任意你喜欢的名字，然后你也需要修改这些文件中的 
+你可以将 `Electron.app` 改成任意你喜欢的名字，然后你也需要修改这些文件中的
 `CFBundleDisplayName`， `CFBundleIdentifier` 以及 `CFBundleName` 字段。
 这些文件如下：
 
@@ -103,7 +103,7 @@ MyApp.app/Contents
 
 ### grunt打包脚本
 
-手动的检查 Electron 代码并重编译是很复杂晦涩的，因此有一个 Grunt任务可以自动自动的处理
+手动检查 Electron 代码并重编译是很复杂晦涩的，因此有一个Grunt任务可以自动的处理
 这些内容 [grunt-build-atom-shell](https://github.com/paulcbetts/grunt-build-atom-shell).
 
 这个任务会自动的处理编辑 `.gyp` 文件，从源代码进行编译，然后重编译你的应用程序的本地 Node 模块以匹配这个新的可执行文件的名称。
