@@ -72,6 +72,11 @@ app.on('ready', function() {
   // Test if using protocol module would crash.
   electron.protocol.registerStringProtocol('test-if-crashes', function() {});
 
+  // Send auto updater errors to window to be verified in specs
+  electron.autoUpdater.on('error', function (error) {
+    window.send('auto-updater-error', error.message);
+  });
+
   window = new BrowserWindow({
     title: 'Electron Tests',
     show: false,
@@ -103,7 +108,7 @@ app.on('ready', function() {
   // reply the result to renderer for verifying
   var downloadFilePath = path.join(__dirname, '..', 'fixtures', 'mock.pdf');
   ipcMain.on('set-download-option', function(event, need_cancel, prevent_default) {
-    window.webContents.session.once('will-download', function(e, item, webContents) {
+    window.webContents.session.once('will-download', function(e, item) {
       if (prevent_default) {
         e.preventDefault();
         const url = item.getURL();
