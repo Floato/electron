@@ -10,6 +10,7 @@
 #include "atom/common/api/api_messages.h"
 #include "atom/common/api/atom_bindings.h"
 #include "atom/common/api/event_emitter_caller.h"
+#include "atom/common/color_util.h"
 #include "atom/common/node_bindings.h"
 #include "atom/common/node_includes.h"
 #include "atom/common/options_switches.h"
@@ -25,6 +26,7 @@
 #include "content/public/renderer/render_frame.h"
 #include "content/public/renderer/render_frame_observer.h"
 #include "content/public/renderer/render_thread.h"
+#include "content/public/renderer/render_view.h"
 #include "ipc/ipc_message_macros.h"
 #include "third_party/WebKit/public/web/WebCustomElement.h"
 #include "third_party/WebKit/public/web/WebLocalFrame.h"
@@ -89,18 +91,6 @@ void AtomRendererClient::WebKitInitialized() {
   blink::WebCustomElement::addEmbedderCustomElementName("browserplugin");
 
   OverrideNodeArrayBuffer();
-
-  node_bindings_->Initialize();
-  node_bindings_->PrepareMessageLoop();
-
-  DCHECK(!global_env);
-
-  // Create a default empty environment which would be used when we need to
-  // run V8 code out of a window context (like running a uv callback).
-  v8::Isolate* isolate = blink::mainThreadIsolate();
-  v8::HandleScope handle_scope(isolate);
-  v8::Local<v8::Context> context = v8::Context::New(isolate);
-  global_env = node::Environment::New(context, uv_default_loop());
 }
 
 void AtomRendererClient::RenderThreadStarted() {
@@ -131,6 +121,18 @@ void AtomRendererClient::RenderFrameCreated(
 }
 
 void AtomRendererClient::RenderViewCreated(content::RenderView* render_view) {
+  base::CommandLine* cmd = base::CommandLine::ForCurrentProcess();
+  if (cmd->HasSwitch(switches::kGuestInstanceID)) {  // webview.
+    // Set transparent background.
+    render_view->GetWebView()->setBaseBackgroundColor(SK_ColorTRANSPARENT);
+  } else {  // normal window.
+    // If backgroundColor is specified then use it.
+    std::string name = cmd->GetSwitchValueASCII(switches::kBackgroundColor);
+    // Otherwise use white background.
+    SkColor color = name.empty() ? SK_ColorWHITE : ParseHexColor(name);
+    render_view->GetWebView()->setBaseBackgroundColor(color);
+  }
+
   new printing::PrintWebViewHelper(render_view);
   new AtomRenderViewObserver(render_view, this);
 }
@@ -156,8 +158,14 @@ bool AtomRendererClient::OverrideCreatePlugin(
 
 void AtomRendererClient::DidCreateScriptContext(
     v8::Handle<v8::Context> context) {
-  // Give the node loop a run to make sure everything is ready.
-  node_bindings_->RunMessageLoop();
+  // Whether the node binding has been initialized.
+  bool first_time = node_bindings_->uv_env() == nullptr;
+
+  // Prepare the node bindings.
+  if (first_time) {
+    node_bindings_->Initialize();
+    node_bindings_->PrepareMessageLoop();
+  }
 
   // Setup node environment for each window.
   node::Environment* env = node_bindings_->CreateEnvironment(context);
@@ -165,12 +173,16 @@ void AtomRendererClient::DidCreateScriptContext(
   // Add atom-shell extended APIs.
   atom_bindings_->BindTo(env->isolate(), env->process_object());
 
-  // Make uv loop being wrapped by window context.
-  if (node_bindings_->uv_env() == nullptr)
-    node_bindings_->set_uv_env(env);
-
   // Load everything.
   node_bindings_->LoadEnvironment(env);
+
+  if (first_time) {
+    // Make uv loop being wrapped by window context.
+    node_bindings_->set_uv_env(env);
+
+    // Give the node loop a run to make sure everything is ready.
+    node_bindings_->RunMessageLoop();
+  }
 }
 
 void AtomRendererClient::WillReleaseScriptContext(

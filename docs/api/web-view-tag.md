@@ -84,6 +84,9 @@ than the minimum values or greater than the maximum.
 If "on", the guest page in `webview` will have node integration and can use node
 APIs like `require` and `process` to access low level system resources.
 
+**Note:** Node integration will always be disabled in the `webview` if it is
+disabled on the parent window.
+
 ### `plugins`
 
 ```html
@@ -279,10 +282,12 @@ Returns a `String` representing the user agent for guest page.
 
 Injects CSS into the guest page.
 
-### `<webview>.executeJavaScript(code, userGesture)`
+### `<webview>.executeJavaScript(code, userGesture, callback)`
 
 * `code` String
 * `userGesture` Boolean - Default `false`.
+* `callback` Function (optional) - Called after script has been executed.
+  * `result`
 
 Evaluates `code` in page. If `userGesture` is set, it will create the user
 gesture context in the page. HTML APIs like `requestFullScreen`, which require
@@ -438,6 +443,10 @@ Sends an input `event` to the page.
 See [webContents.sendInputEvent](web-contents.md##webcontentssendinputeventevent)
 for detailed description of `event` object.
 
+### `<webview>.getWebContents()`
+
+Returns the [WebContents](web-contents.md) associated with this `webview`.
+
 ## DOM events
 
 The following DOM events are available to the `webview` tag:
@@ -567,6 +576,7 @@ Returns:
 * `result` Object
   * `requestId` Integer
   * `finalUpdate` Boolean - Indicates if more responses are to follow.
+  * `activeMatchOrdinal` Integer (optional) - Position of the active match.
   * `matches` Integer (optional) - Number of Matches.
   * `selectionArea` Object (optional) - Coordinates of first match region.
 
@@ -599,7 +609,10 @@ The following example code opens the new url in system's default browser.
 
 ```javascript
 webview.addEventListener('new-window', function(e) {
-  require('electron').shell.openExternal(e.url);
+  var protocol = require('url').parse(e.url).protocol;
+  if (protocol === 'http:' || protocol === 'https:') {
+    require('electron').shell.openExternal(e.url);
+  }
 });
 ```
 

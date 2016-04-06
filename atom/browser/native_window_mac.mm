@@ -6,9 +6,11 @@
 
 #include <string>
 
+#include "atom/common/color_util.h"
 #include "atom/common/draggable_region.h"
 #include "atom/common/options_switches.h"
 #include "base/mac/mac_util.h"
+#include "base/mac/scoped_cftyperef.h"
 #include "base/strings/sys_string_conversions.h"
 #include "brightray/browser/inspectable_web_contents.h"
 #include "brightray/browser/inspectable_web_contents_view.h"
@@ -18,6 +20,7 @@
 #include "content/public/browser/render_view_host.h"
 #include "content/public/browser/render_widget_host_view.h"
 #include "native_mate/dictionary.h"
+#include "skia/ext/skia_utils_mac.h"
 #include "ui/gfx/skia_util.h"
 
 namespace {
@@ -77,6 +80,21 @@ bool ScopedDisableResize::disable_resize_ = false;
     shell_ = shell;
   }
   return self;
+}
+
+- (void)windowDidChangeOcclusionState:(NSNotification *)notification {
+  // notification.object is the window that changed its state.
+  // It's safe to use self.window instead if you don't assign one delegate to many windows
+  NSWindow *window = notification.object;
+
+  // check occlusion binary flag
+  if (window.occlusionState & NSWindowOcclusionStateVisible)   {
+     // The app is visible
+     shell_->NotifyWindowShow();
+   } else {
+     // The app is not visible
+     shell_->NotifyWindowHide();
+   }
 }
 
 - (void)windowDidBecomeMain:(NSNotification*)notification {
@@ -251,6 +269,18 @@ bool ScopedDisableResize::disable_resize_ = false;
 }
 
 // NSWindow overrides.
+
+- (void)swipeWithEvent:(NSEvent *)event {
+  if (event.deltaY == 1.0) {
+    shell_->NotifyWindowSwipe("up");
+  } else if (event.deltaX == -1.0) {
+    shell_->NotifyWindowSwipe("right");
+  } else if (event.deltaY == -1.0) {
+    shell_->NotifyWindowSwipe("down");
+  } else if (event.deltaX == 1.0) {
+    shell_->NotifyWindowSwipe("left");
+  }
+}
 
 - (NSRect)constrainFrameRect:(NSRect)frameRect toScreen:(NSScreen*)screen {
   // Resizing is disabled.
@@ -482,19 +512,9 @@ NativeWindowMac::NativeWindowMac(
   options.Get(options::kDisableAutoHideCursor, &disableAutoHideCursor);
   [window_ setDisableAutoHideCursor:disableAutoHideCursor];
 
-  // Disable fullscreen button when 'fullscreenable' is false or 'fullscreen'
-  // is specified to false.
-  bool fullscreenable = true;
-  options.Get(options::kFullScreenable, &fullscreenable);
-  bool fullscreen = false;
-  if (options.Get(options::kFullscreen, &fullscreen) && !fullscreen)
-    fullscreenable = false;
-  SetFullScreenable(fullscreenable);
-
-  // Disable zoom button if window is not resizable
-  if (!maximizable) {
+  // Disable zoom button if window is not resizable.
+  if (!maximizable)
     SetMaximizable(false);
-  }
 
   NSView* view = inspectable_web_contents()->GetView()->GetNativeView();
   [view setAutoresizingMask:NSViewWidthSizable | NSViewHeightSizable];
@@ -583,7 +603,16 @@ void NativeWindowMac::Unmaximize() {
 }
 
 bool NativeWindowMac::IsMaximized() {
-  return [window_ isZoomed];
+  if (([window_ styleMask] & NSResizableWindowMask) != 0) {
+    return [window_ isZoomed];
+  } else {
+    NSRect rectScreen = [[NSScreen mainScreen] visibleFrame];
+    NSRect rectWindow = [window_ frame];
+    return (rectScreen.origin.x == rectWindow.origin.x &&
+            rectScreen.origin.y == rectWindow.origin.y &&
+            rectScreen.size.width == rectWindow.size.width &&
+            rectScreen.size.height == rectWindow.size.height);
+  }
 }
 
 void NativeWindowMac::Minimize() {
@@ -778,12 +807,9 @@ bool NativeWindowMac::IsKiosk() {
 }
 
 void NativeWindowMac::SetBackgroundColor(const std::string& color_name) {
-  SkColor background_color = NativeWindow::ParseHexColor(color_name);
-  NSColor *color = [NSColor colorWithCalibratedRed:SkColorGetR(background_color)
-    green:SkColorGetG(background_color)
-    blue:SkColorGetB(background_color)
-    alpha:SkColorGetA(background_color)/255.0f];
-  [window_ setBackgroundColor:color];
+  base::ScopedCFTypeRef<CGColorRef> color =
+      skia::CGColorCreateFromSkColor(ParseHexColor(color_name));
+  [[[window_ contentView] layer] setBackgroundColor:color];
 }
 
 void NativeWindowMac::SetHasShadow(bool has_shadow) {
@@ -892,12 +918,15 @@ void NativeWindowMac::HandleKeyboardEvent(
     return;
 
   BOOL handled = [[NSApp mainMenu] performKeyEquivalent:event.os_event];
-  if (!handled && event.os_event.window != window_.get()) {
-    // The event comes from detached devtools view, and it has already been
-    if (!handled && (event.os_event.modifierFlags & NSCommandKeyMask) &&
-        (event.os_event.keyCode == 50  /* ~ key */)) {
-      // Handle the cmd+~ shortcut.
-      Focus(true);
+  if (!handled && event.os_event.window) {
+    // Handle the cmd+~ shortcut.
+    if ((event.os_event.modifierFlags & NSCommandKeyMask) /* cmd */ &&
+        (event.os_event.keyCode == 50  /* ~ */)) {
+      if (event.os_event.modifierFlags & NSShiftKeyMask) {
+        [NSApp sendAction:@selector(_cycleWindowsReversed:) to:nil from:nil];
+      } else {
+        [NSApp sendAction:@selector(_cycleWindows:) to:nil from:nil];
+      }
     }
   }
 }

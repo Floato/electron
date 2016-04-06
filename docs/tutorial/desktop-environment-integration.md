@@ -15,6 +15,8 @@ to the user. Electron conveniently allows developers to send notifications with
 the [HTML5 Notification API](https://notifications.spec.whatwg.org/), using
 the currently running operating system's native notification APIs to display it.
 
+**Note:** Since this is an HTML5 API it is only available in the renderer process.
+
 ```javascript
 var myNotification = new Notification('Title', {
   body: 'Lorem Ipsum Dolor Sit Amet'
@@ -246,11 +248,13 @@ __Launcher shortcuts of Audacious:__
 
 ![audacious](https://help.ubuntu.com/community/UnityLaunchersAndDesktopFiles?action=AttachFile&do=get&target=shortcuts.png)
 
-## Progress Bar in Taskbar (Windows & Unity)
+## Progress Bar in Taskbar (Windows, OS X, Unity)
 
 On Windows a taskbar button can be used to display a progress bar. This enables
 a window to provide progress information to the user without the user having to
 switch to the window itself.
+
+On OS X the progress bar will be displayed as a part of the dock icon.
 
 The Unity DE also has a similar feature that allows you to specify the progress
 bar in the launcher.
@@ -258,10 +262,6 @@ bar in the launcher.
 __Progress bar in taskbar button:__
 
 ![Taskbar Progress Bar](https://cloud.githubusercontent.com/assets/639601/5081682/16691fda-6f0e-11e4-9676-49b6418f1264.png)
-
-__Progress bar in Unity launcher:__
-
-![Unity Launcher](https://cloud.githubusercontent.com/assets/639601/5081747/4a0a589e-6f0f-11e4-803f-91594716a546.png)
 
 To set the progress bar for a Window, you can use the
 [BrowserWindow.setProgressBar][setprogressbar] API:

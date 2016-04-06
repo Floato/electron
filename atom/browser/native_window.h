@@ -210,6 +210,8 @@ class NativeWindow : public base::SupportsUserData,
   void NotifyWindowClosed();
   void NotifyWindowBlur();
   void NotifyWindowFocus();
+  void NotifyWindowShow();
+  void NotifyWindowHide();
   void NotifyWindowMaximize();
   void NotifyWindowUnmaximize();
   void NotifyWindowMinimize();
@@ -219,6 +221,7 @@ class NativeWindow : public base::SupportsUserData,
   void NotifyWindowMoved();
   void NotifyWindowScrollTouchBegin();
   void NotifyWindowScrollTouchEnd();
+  void NotifyWindowSwipe(const std::string& direction);
   void NotifyWindowEnterFullScreen();
   void NotifyWindowLeaveFullScreen();
   void NotifyWindowEnterHtmlFullScreen();
@@ -278,9 +281,6 @@ class NativeWindow : public base::SupportsUserData,
   void RenderViewCreated(content::RenderViewHost* render_view_host) override;
   void BeforeUnloadDialogCancelled() override;
   bool OnMessageReceived(const IPC::Message& message) override;
-
-  // Parse hex color like "#FFF" or "#EFEFEF"
-  SkColor ParseHexColor(const std::string& name);
 
  private:
   // Schedule a notification unresponsive event.

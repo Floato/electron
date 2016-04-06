@@ -58,9 +58,8 @@ It creates a new `BrowserWindow` with native properties as set by the `options`.
   * `alwaysOnTop` Boolean - Whether the window should always stay on top of
     other windows. Default is `false`.
   * `fullscreen` Boolean - Whether the window should show in fullscreen. When
-    explicitly set to `false` the fullscreen button will be hidden or disabled
-    on OS X, or the maximize button will be disabled on Windows. Default is
-    `false`.
+    explicity set to `false` the fullscreen button will be hidden or disabled
+    on OS X. Default is `false`.
   * `fullscreenable` Boolean - Whether the maximize/zoom button on OS X should
     toggle full screen mode or maximize window. Default is `true`.
   * `skipTaskbar` Boolean - Whether to show the window in taskbar. Default is
@@ -84,8 +83,7 @@ It creates a new `BrowserWindow` with native properties as set by the `options`.
     than screen. Default is `false`.
   * `backgroundColor` String - Window's background color as Hexadecimal value,
     like `#66CD00` or `#FFF` or `#80FFFFFF` (alpha is supported). Default is
-    `#000` (black) for Linux and Windows, `#FFF` for Mac (or clear if
-    transparent).
+    `#FFF` (white).
   * `hasShadow` Boolean - Whether window should have a shadow. This is only
     implemented on OS X. Default is `true`.
   * `darkTheme` Boolean - Forces using dark theme for the window, only works on
@@ -246,6 +244,14 @@ Emitted when the window loses focus.
 
 Emitted when the window gains focus.
 
+### Event: 'show'
+
+Emitted when the window is shown.
+
+### Event: 'hide'
+
+Emitted when the window is hidden.
+
 ### Event: 'maximize'
 
 Emitted when window is maximized.
@@ -294,9 +300,17 @@ Emitted when the window leaves full screen state triggered by html api.
 
 ### Event: 'app-command' _Windows_
 
+Returns:
+
+* `event` Event
+* `command` String
+
 Emitted when an [App Command](https://msdn.microsoft.com/en-us/library/windows/desktop/ms646275(v=vs.85).aspx)
 is invoked. These are typically related to keyboard media keys or browser
 commands, as well as the "Back" button built into some mice on Windows.
+
+Commands are lowercased with underscores replaced with hyphens and the `APPCOMMAND_` prefix stripped off.
+e.g. `APPCOMMAND_BROWSER_BACKWARD` is emitted as `browser-backward`.
 
 ```js
 someWindow.on('app-command', function(e, cmd) {
@@ -314,6 +328,15 @@ Emitted when scroll wheel event phase has begun.
 ### Event: 'scroll-touch-end' _OS X_
 
 Emitted when scroll wheel event phase has ended.
+
+### Event: 'swipe' _OS X_
+
+Returns:
+
+* `event` Event
+* `direction` String
+
+Emitted on 3-finger swipe. Possible directions are `up`, `right`, `down`, `left`.
 
 ## Methods
 
@@ -397,6 +420,10 @@ the [close event](#event-close).
 ### `win.focus()`
 
 Focus on the window.
+
+### `win.blur()`
+
+Remove focus on the window.
 
 ### `win.isFocused()`
 
@@ -582,17 +609,17 @@ nothing.
 Returns whether the window can be manually maximized by user. On Linux always
 returns `true`.
 
-### `win.setFullScreenable(fullscreenable)` _OS X_
+### `win.setFullScreenable(fullscreenable)`
 
 * `fullscreenable` Boolean
 
 Sets whether the maximize/zoom window button toggles fullscreen mode or
-maximizes the window. On Windows and Linux does nothing.
+maximizes the window.
 
-### `win.isFullScreenable()` _OS X_
+### `win.isFullScreenable()`
 
 Returns whether the maximize/zoom window button toggles fullscreen mode or
-maximizes the window. On Windows and Linux always returns `true`.
+maximizes the window.
 
 ### `win.setClosable(closable)` _OS X_ _Windows_
 
