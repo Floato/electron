@@ -80,6 +80,9 @@
 "on"으로 지정하면 `webview` 페이지 내에서 `require`와 `process 객체`같은 node.js
 API를 사용할 수 있습니다. 이를 지정하면 내부에서 로우레벨 리소스에 접근할 수 있습니다.
 
+**참고:** Node 통합 기능은 `webview`에서 부모 윈도우가 해당 옵션이 비활성화되어있는
+경우 항상 비활성화됩니다.
+
 ### `plugins`
 
 ```html
@@ -492,6 +495,7 @@ Returns:
 * `requestMethod` String
 * `referrer` String
 * `headers` Object
+* `resourceType` String
 
 요청한 리소스에 관해 자세한 내용을 알 수 있을 때 발생하는 이벤트입니다.
 `status`는 리소스를 다운로드할 소켓 커낵션을 나타냅니다.
@@ -595,7 +599,10 @@ Returns:
 
 ```javascript
 webview.addEventListener('new-window', function(e) {
-  require('electron').shell.openExternal(e.url);
+  var protocol = require('url').parse(e.url).protocol;
+  if (protocol === 'http:' || protocol === 'https:') {
+    require('electron').shell.openExternal(e.url);
+  }
 });
 ```
 
