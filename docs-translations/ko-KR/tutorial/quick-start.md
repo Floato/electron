@@ -12,7 +12,7 @@ Electron은 웹 페이지의 GUI를 사용합니다. 쉽게 말해 Electron은 �
 
 ### 메인 프로세스
 
-Electron은 실행될 때 __메인 프로세스__로 불리는 `package.json`의 `main` 스크립트를
+Electron은 실행될 때 __메인 프로세스__ 로 불리는 `package.json`의 `main` 스크립트를
 호출합니다. 이 스크립트는 메인 프로세스에서 작동합니다. GUI 컴포넌트를 조작하거나 웹
 페이지 창을 생성할 수 있습니다.
 
@@ -43,6 +43,7 @@ API를 사용하여 low-level 수준으로 운영체제와 상호작용할 수 �
 Electron에는 메인 프로세스와 랜더러 프로세스 사이에 통신을 할 수 있도록
 [ipc](../api/ipc-renderer.md) 모듈을 제공하고 있습니다.
 또는 [remote](../api/remote.md) 모듈을 사용하여 RPC 스타일로 통신할 수도 있습니다.
+또한 FAQ에서 [다양한 객체를 공유하는 방법](share-data)도 소개하고 있습니다.
 
 ## 첫번째 Electron 앱 만들기
 
@@ -185,7 +186,7 @@ $ ./Electron.app/Contents/MacOS/Electron your-app/
 ```
 
 어플리케이션 실행파일은 `Electron`의 release 패키지에 포함되어 있습니다.
-[여기](https://github.com/atom/electron/releases)에서 다운로드 받을 수 있습니다.
+[여기](https://github.com/electron/electron/releases)에서 다운로드 받을 수 있습니다.
 
 ### 배포용 실행 파일 만들기
 
@@ -194,7 +195,7 @@ $ ./Electron.app/Contents/MacOS/Electron your-app/
 
 ### 미리 작성된 앱 실행하기
 
-[`atom/electron-quick-start`](https://github.com/atom/electron-quick-start)
+[`atom/electron-quick-start`](https://github.com/electron/electron-quick-start)
 저장소를 클론하면 이 문서에서 작성한 예제 앱을 바로 실행해 볼 수 있습니다.
 
 **참고**: 이 예제를 실행시키려면 [Git](https://git-scm.com)과
@@ -205,9 +206,11 @@ $ ./Electron.app/Contents/MacOS/Electron your-app/
 
 ```bash
 # 저장소를 클론합니다
-$ git clone https://github.com/atom/electron-quick-start
+$ git clone https://github.com/electron/electron-quick-start
 # 저장소 안으로 들어갑니다
 $ cd electron-quick-start
 # 어플리케이션의 종속성 모듈을 설치한 후 실행합니다
 $ npm install && npm start
 ```
+
+[share-data]: ../faq/electron-faq.md#어떻게-웹-페이지-간에-데이터를-공유할-수-있나요

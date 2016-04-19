@@ -11,7 +11,7 @@ const Tray = electron.Tray;
 
 var appIcon = null;
 app.on('ready', function(){
-  appIcon = new Tray('/path/to/my/icon'); // 현재 어플리케이션 디렉터리를 기준으로 하려면 `__dirname + '/images/tray.png'` 형식으로 입력해야합니다.
+  appIcon = new Tray('/path/to/my/icon'); // 현재 어플리케이션 디렉터리를 기준으로 하려면 `__dirname + '/images/tray.png'` 형식으로 입력해야 합니다.
   var contextMenu = Menu.buildFromTemplate([
     { label: 'Item1', type: 'radio' },
     { label: 'Item2', type: 'radio' },
@@ -32,6 +32,13 @@ __플랫폼별 한계:__
   트레이 아이콘이 작동하도록 만들 수 있습니다.
 * 앱 알림 표시기는 컨텍스트 메뉴를 가지고 있을 때만 보입니다.
 * Linux에서 앱 표시기가 사용될 경우, `click` 이벤트는 무시됩니다.
+* Linux에서 각각 개별 `MenuItem`의 변경을 적용하려면 `setContextMenu`를 다시
+  호출해야 합니다. 예를 들면:
+
+```javascript
+contextMenu.items[2].checked = false;
+appIcon.setContextMenu(contextMenu);
+```
 
 이러한 이유로 Tray API가 모든 플랫폼에서 똑같이 작동하게 하고 싶다면 `click` 이벤트에
 의존해선 안되며 언제나 컨텍스트 메뉴를 포함해야 합니다.
@@ -67,7 +74,7 @@ __플랫폼별 한계:__
 
 트레이 아이콘이 클릭될 때 발생하는 이벤트입니다.
 
-__주의:__ `bounds`는 OS X 와 Windows에서만 작동합니다.
+**참고:** `bounds`는 OS X 와 Windows에서만 작동합니다.
 
 ### Event: 'right-click' _OS X_ _Windows_
 

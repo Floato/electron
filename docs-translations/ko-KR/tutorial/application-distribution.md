@@ -30,7 +30,7 @@ electron/resources/app
 
 ## asar로 앱 패키징 하기
 
-소스파일 전체를 복사해서 배포하는 것과는 별개로 [asar](https://github.com/atom/asar)
+소스파일 전체를 복사해서 배포하는 것과는 별개로 [asar](https://github.com/electron/asar)
 아카이브를 통해 어플리케이션의 소스코드가 사용자에게 노출되는 것을 방지할 수 있습니다.
 
 `asar` 아카이브를 사용할 땐 단순히 `app` 폴더 대신에 어플리케이션을 패키징한
@@ -59,9 +59,8 @@ electron/resources/
 
 ### Windows
 
-`electron.exe`을 원하는 이름으로 변경할 수 있습니다.
-그리고 [rcedit](https://github.com/atom/rcedit)
-를 사용하여 아이콘을 변경할 수 있습니다.
+[rcedit](https://github.com/atom/rcedit)를 통해 `electron.exe`을 원하는 이름으로
+변경할 수 있고, 또한 아이콘과 기타 정보도 변경할 수 있습니다.
 
 ### OS X
 

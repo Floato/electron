@@ -33,6 +33,7 @@ Returns:
 * `errorCode` Integer
 * `errorDescription` String
 * `validatedURL` String
+* `isMainFrame` Boolean
 
 This event is like `did-finish-load` but emitted when the load failed or was
 cancelled, e.g. `window.stop()` is invoked.
@@ -67,6 +68,7 @@ Returns:
 * `requestMethod` String
 * `referrer` String
 * `headers` Object
+* `resourceType` String
 
 Emitted when details regarding a requested resource are available.
 `status` indicates the socket connection to download the resource.
@@ -259,8 +261,9 @@ Returns:
 * `result` Object
   * `requestId` Integer
   * `finalUpdate` Boolean - Indicates if more responses are to follow.
-  * `matches` Integer (Optional) - Number of Matches.
-  * `selectionArea` Object (Optional) - Coordinates of first match region.
+  * `activeMatchOrdinal` Integer (optional) - Position of the active match.
+  * `matches` Integer (optional) - Number of Matches.
+  * `selectionArea` Object (optional) - Coordinates of first match region.
 
 Emitted when a result is available for
 [`webContents.findInPage`](web-contents.md#webcontentsfindinpage) request.
@@ -310,7 +313,7 @@ The `webContents` object has the following instance methods:
 ### `webContents.loadURL(url[, options])`
 
 * `url` URL
-* `options` Object (optional), properties:
+* `options` Object (optional)
   * `httpReferrer` String - A HTTP Referrer url.
   * `userAgent` String - A user agent originating the request.
   * `extraHeaders` String - Extra headers separated by "\n"
@@ -425,10 +428,12 @@ Returns a `String` representing the user agent for this web page.
 
 Injects CSS into the current web page.
 
-### `webContents.executeJavaScript(code[, userGesture])`
+### `webContents.executeJavaScript(code[, userGesture, callback])`
 
 * `code` String
 * `userGesture` Boolean (optional)
+* `callback` Function (optional) - Called after script has been executed.
+  * `result`
 
 Evaluates `code` in page.
 
@@ -503,7 +508,7 @@ Inserts `text` to the focused element.
 ### `webContents.findInPage(text[, options])`
 
 * `text` String - Content to be searched, must not be empty.
-* `options` Object (Optional)
+* `options` Object (optional)
   * `forward` Boolean - Whether to search forward or backward, defaults to `true`.
   * `findNext` Boolean - Whether the operation is first request or a follow up,
     defaults to `false`.
@@ -556,11 +561,10 @@ when the JS promise is rejected.
 
 ### `webContents.print([options])`
 
-`options` Object (optional), properties:
-
-* `silent` Boolean - Don't ask user for print settings, defaults to `false`
-* `printBackground` Boolean - Also prints the background color and image of
-  the web page, defaults to `false`.
+* `options` Object (optional)
+  * `silent` Boolean - Don't ask user for print settings. Default is `false`.
+  * `printBackground` Boolean - Also prints the background color and image of
+    the web page. Default is `false`.
 
 Prints window's web page. When `silent` is set to `false`, Electron will pick
 up system's default printer and default settings for printing.
@@ -574,30 +578,21 @@ size.
 
 ### `webContents.printToPDF(options, callback)`
 
-`options` Object, properties:
-
-* `marginsType` Integer - Specify the type of margins to use
-  * 0 - default
-  * 1 - none
-  * 2 - minimum
-* `pageSize` String - Specify page size of the generated PDF.
-  * `A5`
-  * `A4`
-  * `A3`
-  * `Legal`
-  * `Letter`
-  * `Tabloid`
-* `printBackground` Boolean - Whether to print CSS backgrounds.
-* `printSelectionOnly` Boolean - Whether to print selection only.
-* `landscape` Boolean - `true` for landscape, `false` for portrait.
-
-`callback` Function - `function(error, data) {}`
-
-* `error` Error
-* `data` Buffer - PDF file content.
+* `options` Object
+  * `marginsType` Integer - Specifies the type of margins to use. Uses 0 for
+    default margin, 1 for no margin, and 2 for minimum margin.
+  * `pageSize` String - Specify page size of the generated PDF. Can be `A3`,
+    `A4`, `A5`, `Legal`, `Letter` and `Tabloid`.
+  * `printBackground` Boolean - Whether to print CSS backgrounds.
+  * `printSelectionOnly` Boolean - Whether to print selection only.
+  * `landscape` Boolean - `true` for landscape, `false` for portrait.
+* `callback` Function
 
 Prints window's web page as PDF with Chromium's preview printing custom
 settings.
+
+The `callback` will be called with `callback(error, data)` on completion. The
+`data` is a `Buffer` that contains the generated PDF data.
 
 By default, an empty `options` will be regarded as:
 
@@ -651,7 +646,7 @@ Removes the specified path from DevTools workspace.
 
 ### `webContents.openDevTools([options])`
 
-* `options` Object (optional). Properties:
+* `options` Object (optional)
   * `detach` Boolean - opens DevTools in a new window
 
 Opens the devtools.
@@ -672,10 +667,6 @@ Returns whether the devtools view is focused .
 
 Toggles the developer tools.
 
-### `webContents.isDevToolsFocused()`
-
-Returns whether the developer tools is focused.
-
 ### `webContents.inspectElement(x, y)`
 
 * `x` Integer
@@ -693,8 +684,11 @@ Opens the developer tools for the service worker context.
 * `arg` (optional)
 
 Send an asynchronous message to renderer process via `channel`, you can also
-send arbitrary arguments. The renderer process can handle the message by
-listening to the `channel` event with the `ipcRenderer` module.
+send arbitrary arguments. Arguments will be serialized in JSON internally and
+hence no functions or prototype chain will be included.
+
+The renderer process can handle the message by listening to `channel` with the
+`ipcRenderer` module.
 
 An example of sending messages from the main process to the renderer process:
 
@@ -773,11 +767,9 @@ Sends an input `event` to the page.
 
 For keyboard events, the `event` object also have following properties:
 
-* `keyCode` Char or String (**required**) - The character that will be sent
-  as the keyboard event. Can be a single UTF-8 character, or the name of the
-  key that generates the event. Accepted key names are `enter`, `backspace`,
-  `delete`, `tab`, `escape`, `control`, `alt`, `shift`, `end`, `home`, `insert`,
-  `left`, `up`, `right`, `down`, `pageUp`, `pageDown`, `printScreen`
+* `keyCode` String (**required**) - The character that will be sent
+  as the keyboard event. Should only use the valid key codes in
+  [Accelerator](accelerator.md).
 
 For mouse events, the `event` object also have following properties:
 
@@ -848,6 +840,10 @@ win.webContents.on('did-finish-load', function() {
 ### `webContents.session`
 
 Returns the [session](session.md) object used by this webContents.
+
+### `webContents.hostWebContents`
+
+Returns the `WebContents` that might own this `WebContents`.
 
 ### `webContents.devToolsWebContents`
 

@@ -24,6 +24,8 @@ Electron はウェブページを表示させるために Chromium を使用し�
 
 Electron では、メインプロセスとレンダラープロセスとのコミュニケーションをするために [ipc](../api/ipc-renderer.md) モジュールを提供しています。またそれと、RPC 形式の通信を行う [remote](../api/remote.md) モジュールもあります。
 
+Electron では、メインプロセスとレンダラープロセスとのコミュニケーションをするには幾つかのほうほうがあります。メッセージを送信する[`ipcRenderer`](../api/ipc-renderer.md)モジュールと[`ipcMain`](../api/ipc-main.md)モジュールのように、RPC 形式の通信を行う[remote](../api/remote.md)モジュールです。[ウェブページ間のデータを共有する方法][share-data]にFAQエントリーがあります。
+
 ## Electronアプリを作成する
 
 一般的に Electron アプリの構成は次のようになります：
@@ -149,7 +151,7 @@ $ ./electron/electron your-app/
 $ ./Electron.app/Contents/MacOS/Electron your-app/
 ```
 
-`Electron.app` は Electron のリリースパッケージの一部で、[ここ](https://github.com/atom/electron/releases) からダウンロードできます。
+`Electron.app` は Electron のリリースパッケージの一部で、[ここ](https://github.com/electron/electron/releases) からダウンロードできます。
 
 ### Run as a distribution
 
@@ -157,15 +159,17 @@ $ ./Electron.app/Contents/MacOS/Electron your-app/
 
 ### 試してみよう
 
-このチュートリアルのコードは [`atom/electron-quick-start`](https://github.com/atom/electron-quick-start) リポジトリから clone して実行できます。
+このチュートリアルのコードは [`atom/electron-quick-start`](https://github.com/electron/electron-quick-start) リポジトリから clone して実行できます。
 
 **注記**：例を試すには、[Git](https://git-scm.com) と [Node.js](https://nodejs.org/en/download/) ([npm](https://npmjs.org) もこれに含まれています) が必要です。
 
 ```bash
 # Clone the repository
-$ git clone https://github.com/atom/electron-quick-start
+$ git clone https://github.com/electron/electron-quick-start
 # Go into the repository
 $ cd electron-quick-start
 # Install dependencies and run the app
 $ npm install && npm start
 ```
+
+[share-data]: ../faq/electron-faq.md#how-to-share-data-between-web-pages

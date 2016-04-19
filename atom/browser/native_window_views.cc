@@ -9,11 +9,13 @@
 
 #include "atom/browser/ui/views/menu_bar.h"
 #include "atom/browser/ui/views/menu_layout.h"
+#include "atom/common/color_util.h"
 #include "atom/common/draggable_region.h"
 #include "atom/common/options_switches.h"
 #include "base/strings/utf_string_conversions.h"
 #include "brightray/browser/inspectable_web_contents.h"
 #include "brightray/browser/inspectable_web_contents_view.h"
+#include "content/public/browser/browser_thread.h"
 #include "content/public/browser/native_web_keyboard_event.h"
 #include "native_mate/dictionary.h"
 #include "ui/aura/window_tree_host.h"
@@ -117,7 +119,8 @@ NativeWindowViews::NativeWindowViews(
       movable_(true),
       resizable_(true),
       maximizable_(true),
-      minimizable_(true) {
+      minimizable_(true),
+      fullscreenable_(true) {
   options.Get(options::kTitle, &title_);
   options.Get(options::kAutoHideMenuBar, &menu_bar_autohide_);
 
@@ -300,14 +303,35 @@ bool NativeWindowViews::IsFocused() {
 
 void NativeWindowViews::Show() {
   window_->native_widget_private()->ShowWithWindowState(GetRestoredState());
+
+  NotifyWindowShow();
+
+#if defined(USE_X11)
+  if (global_menu_bar_)
+    global_menu_bar_->OnWindowMapped();
+#endif
 }
 
 void NativeWindowViews::ShowInactive() {
   window_->ShowInactive();
+
+  NotifyWindowShow();
+
+#if defined(USE_X11)
+  if (global_menu_bar_)
+    global_menu_bar_->OnWindowMapped();
+#endif
 }
 
 void NativeWindowViews::Hide() {
   window_->Hide();
+
+  NotifyWindowHide();
+
+#if defined(USE_X11)
+  if (global_menu_bar_)
+    global_menu_bar_->OnWindowUnmapped();
+#endif
 }
 
 bool NativeWindowViews::IsVisible() {
@@ -347,6 +371,9 @@ bool NativeWindowViews::IsMinimized() {
 }
 
 void NativeWindowViews::SetFullScreen(bool fullscreen) {
+  if (!IsFullScreenable())
+    return;
+
 #if defined(OS_WIN)
   // There is no native fullscreen state on Windows.
   if (fullscreen) {
@@ -490,11 +517,12 @@ bool NativeWindowViews::IsMaximizable() {
 #endif
 }
 
-void NativeWindowViews::SetFullScreenable(bool maximizable) {
+void NativeWindowViews::SetFullScreenable(bool fullscreenable) {
+  fullscreenable_ = fullscreenable;
 }
 
 bool NativeWindowViews::IsFullScreenable() {
-  return true;
+  return fullscreenable_;
 }
 
 void NativeWindowViews::SetClosable(bool closable) {
@@ -588,7 +616,7 @@ bool NativeWindowViews::IsKiosk() {
 
 void NativeWindowViews::SetBackgroundColor(const std::string& color_name) {
   // web views' background color.
-  SkColor background_color = NativeWindow::ParseHexColor(color_name);
+  SkColor background_color = ParseHexColor(color_name);
   set_background(views::Background::CreateSolidBackground(background_color));
 
 #if defined(OS_WIN)
@@ -753,10 +781,12 @@ void NativeWindowViews::OnWidgetActivationChanged(
   if (widget != window_.get())
     return;
 
-  if (active)
-    NotifyWindowFocus();
-  else
-    NotifyWindowBlur();
+  // Post the notification to next tick.
+  content::BrowserThread::PostTask(
+      content::BrowserThread::UI, FROM_HERE,
+      base::Bind(active ? &NativeWindow::NotifyWindowFocus :
+                          &NativeWindow::NotifyWindowBlur,
+                 GetWeakPtr()));
 
   if (active && inspectable_web_contents() &&
       !inspectable_web_contents()->IsDevToolsViewShowing())

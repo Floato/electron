@@ -1,10 +1,11 @@
 [![Electron Logo](http://electron.atom.io/images/electron-logo.svg)](http://electron.atom.io/)
 
 [![Build Status](https://travis-ci.org/atom/electron.svg?branch=master)](https://travis-ci.org/atom/electron)
+[![AppVeyor Build Status](https://ci.appveyor.com/api/projects/status/qtmod45u0cc1ouov/branch/master?svg=true)](https://ci.appveyor.com/project/Atom/electron)
 [![devDependency Status](https://david-dm.org/atom/electron/dev-status.svg)](https://david-dm.org/atom/electron#info=devDependencies)
 [![Join the Electron Community on Slack](http://atom-slack.herokuapp.com/badge.svg)](http://atom-slack.herokuapp.com/)
 
-### [Electron](https://github.com/atom/electron/) 한국어 참조문서
+### [Electron](https://github.com/electron/electron/) 한국어 참조문서
 
 :zap: *프레임워크 이름이 Atom Shell에서 Electron으로 변경되었습니다* :zap:
 
@@ -23,7 +24,7 @@ Electron에 대한 중요한 알림을 받고 싶다면 Twitter에서
 ## 다운로드
 
 Linux, Windows, OS X 용으로 미리 빌드된 Electron 바이너리와 디버그 심볼이 준비되어
-있습니다. [releases](https://github.com/atom/electron/releases) 페이지에서 받아 볼
+있습니다. [releases](https://github.com/electron/electron/releases) 페이지에서 받아 볼
 수 있습니다.
 
 또한 [`npm`](https://docs.npmjs.com/)을 통해 미리 빌드된 Electron 바이너리를 설치할
@@ -43,24 +44,25 @@ npm install electron-prebuilt --save-dev
 
 ## 참조 문서
 
-[Docs](https://github.com/atom/electron/tree/master/docs/README.md)에 개발 지침과
+[Docs](https://github.com/electron/electron/tree/master/docs/README.md)에 개발 지침과
 API 레퍼런스가 있습니다. Electron을 빌드 하는 방법과 프로젝트에 기여하는법 또한 문서에
 포함되어 있으니 참고하시기 바랍니다.
 
 ## 참조 문서 (번역)
 
-- [브라질 포르투갈어](https://github.com/atom/electron/tree/master/docs-translations/pt-BR)
-- [한국어](https://github.com/atom/electron/tree/master/docs-translations/ko-KR)
-- [일본어](https://github.com/atom/electron/tree/master/docs-translations/jp)
-- [스페인어](https://github.com/atom/electron/tree/master/docs-translations/es)
-- [중국어 간체](https://github.com/atom/electron/tree/master/docs-translations/zh-CN)
-- [중국어 번체](https://github.com/atom/electron/tree/master/docs-translations/zh-TW)
-- [우크라이나어](https://github.com/atom/electron/tree/master/docs-translations/uk-UA)
-- [러시아어](https://github.com/atom/electron/tree/master/docs-translations/ru-RU)
+- [브라질 포르투갈어](https://github.com/electron/electron/tree/master/docs-translations/pt-BR)
+- [한국어](https://github.com/electron/electron/tree/master/docs-translations/ko-KR)
+- [일본어](https://github.com/electron/electron/tree/master/docs-translations/jp)
+- [스페인어](https://github.com/electron/electron/tree/master/docs-translations/es)
+- [중국어 간체](https://github.com/electron/electron/tree/master/docs-translations/zh-CN)
+- [중국어 번체](https://github.com/electron/electron/tree/master/docs-translations/zh-TW)
+- [우크라이나어](https://github.com/electron/electron/tree/master/docs-translations/uk-UA)
+- [러시아어](https://github.com/electron/electron/tree/master/docs-translations/ru-RU)
+- [프랑스어](https://github.com/electron/electron/tree/master/docs-translations/fr-FR)
 
 ## 시작하기
 
-[`atom/electron-quick-start`](https://github.com/atom/electron-quick-start)
+[`atom/electron-quick-start`](https://github.com/electron/electron-quick-start)
 저장소를 클론하여 Electron을 간단히 접해볼 수 있습니다.
 
 ## 커뮤니티
@@ -70,8 +72,9 @@ API 레퍼런스가 있습니다. Electron을 빌드 하는 방법과 프로젝�
 - Atom 포럼의 [`electron`](http://discuss.atom.io/c/electron) 카테고리
 - Freenode 채팅의 `#atom-shell` 채널
 - Slack의 [`Atom`](http://atom-slack.herokuapp.com/) 채널
-- [`electron-br`](https://electron-br.slack.com) *(브라질 포르투갈어)* 커뮤니티
-- [`electron-kr`](http://www.meetup.com/electron-kr/) *(한국어)* 커뮤니티
+- [`electron-br`](https://electron-br.slack.com) *(브라질)* 커뮤니티
+- [`electron-kr`](http://www.meetup.com/electron-kr/) *(한국)* 커뮤니티
+- [`electron-jp`](https://electron-jp-slackin.herokuapp.com/) *(일본)* 커뮤니티
 
 [awesome-electron](https://github.com/sindresorhus/awesome-electron) 프로젝트에
 커뮤니티가 운영중인 유용한 예제 어플리케이션과 도구, 리소스가 있으니 한번 참고해 보시기

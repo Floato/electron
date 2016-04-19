@@ -58,6 +58,8 @@ class Window : public mate::TrackableObject<Window>,
   void OnWindowClosed() override;
   void OnWindowBlur() override;
   void OnWindowFocus() override;
+  void OnWindowShow() override;
+  void OnWindowHide() override;
   void OnWindowMaximize() override;
   void OnWindowUnmaximize() override;
   void OnWindowMinimize() override;
@@ -67,6 +69,7 @@ class Window : public mate::TrackableObject<Window>,
   void OnWindowMoved() override;
   void OnWindowScrollTouchBegin() override;
   void OnWindowScrollTouchEnd() override;
+  void OnWindowSwipe(const std::string& direction) override;
   void OnWindowEnterFullScreen() override;
   void OnWindowLeaveFullScreen() override;
   void OnWindowEnterHtmlFullScreen() override;
@@ -83,6 +86,7 @@ class Window : public mate::TrackableObject<Window>,
   // APIs for NativeWindow.
   void Close();
   void Focus();
+  void Blur();
   bool IsFocused();
   void Show();
   void ShowInactive();

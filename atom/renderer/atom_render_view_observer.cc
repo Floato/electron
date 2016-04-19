@@ -27,6 +27,7 @@
 #include "third_party/WebKit/public/web/WebFrame.h"
 #include "third_party/WebKit/public/web/WebLocalFrame.h"
 #include "third_party/WebKit/public/web/WebKit.h"
+#include "third_party/WebKit/public/web/WebScriptSource.h"
 #include "third_party/WebKit/public/web/WebView.h"
 #include "ui/base/resource/resource_bundle.h"
 #include "native_mate/dictionary.h"
@@ -39,7 +40,11 @@ bool GetIPCObject(v8::Isolate* isolate,
                   v8::Local<v8::Context> context,
                   v8::Local<v8::Object>* ipc) {
   v8::Local<v8::String> key = mate::StringToV8(isolate, "ipc");
-  v8::Local<v8::Value> value = context->Global()->GetHiddenValue(key);
+  v8::Local<v8::Private> privateKey = v8::Private::ForApi(isolate, key);
+  v8::Local<v8::Object> global_object = context->Global();
+  v8::Local<v8::Value> value;
+  if (!global_object->GetPrivate(context, privateKey).ToLocal(&value))
+    return false;
   if (value.IsEmpty() || !value->IsObject())
     return false;
   *ipc = value->ToObject();
@@ -83,6 +88,9 @@ AtomRenderViewObserver::~AtomRenderViewObserver() {
 void AtomRenderViewObserver::DidCreateDocumentElement(
     blink::WebLocalFrame* frame) {
   document_created_ = true;
+
+  // Make sure every page will get a script context created.
+  frame->executeScript(blink::WebScriptSource("void 0"));
 
   // Read --zoom-factor from command line.
   std::string zoom_factor_str = base::CommandLine::ForCurrentProcess()->

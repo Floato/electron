@@ -199,6 +199,10 @@ class NativeWindowViews : public NativeWindow,
 
   // In charge of running taskbar related APIs.
   TaskbarHost taskbar_host_;
+
+  // If true we have enabled a11y
+  bool enabled_a11y_support_;
+
 #endif
 
   // Handles unhandled keyboard messages coming back from the renderer process.
@@ -212,6 +216,7 @@ class NativeWindowViews : public NativeWindow,
   bool resizable_;
   bool maximizable_;
   bool minimizable_;
+  bool fullscreenable_;
   std::string title_;
   gfx::Size widget_size_;
 

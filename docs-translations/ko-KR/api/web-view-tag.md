@@ -17,8 +17,14 @@
 수 있습니다:
 
 ```html
-<webview id="foo" src="https://www.github.com/" style="display:inline-block; width:640px; height:480px"></webview>
+<webview id="foo" src="https://www.github.com/" style="display:inline-flex; width:640px; height:480px"></webview>
 ```
+
+주의할 점은 `webview` 태그의 스타일은 전통적인 flexbox 레이아웃을 사용했을 때 자식
+`object` 요소가 해당 `webview` 컨테이너의 전체 높이와 넓이를 확실히 채우도록
+내부적으로 `display:flex;`를 사용합니다. (v0.36.11 부터) 따라서 인라인 레이아웃을
+위해 `display:inline-flex;`를 쓰지 않는 한, 기본 `display:flex;` CSS 속성을
+덮어쓰지 않도록 주의해야 합니다.
 
 게스트 컨텐츠를 조작하기 위해 자바스크립트로 `webview` 태그의 이벤트를 리스닝 하여
 응답을 받을 수 있습니다. 다음 예제를 참고하세요: 첫번째 리스너는 페이지 로딩 시작시의
@@ -79,6 +85,9 @@
 
 "on"으로 지정하면 `webview` 페이지 내에서 `require`와 `process 객체`같은 node.js
 API를 사용할 수 있습니다. 이를 지정하면 내부에서 로우레벨 리소스에 접근할 수 있습니다.
+
+**참고:** Node 통합 기능은 `webview`에서 부모 윈도우가 해당 옵션이 비활성화되어있는
+경우 항상 비활성화됩니다.
 
 ### `plugins`
 
@@ -178,7 +187,7 @@ webview.addEventListener("dom-ready", function() {
 ### `<webview>.loadURL(url[, options])`
 
 * `url` URL
-* `options` Object (optional), 속성들:
+* `options` Object (optional)
   * `httpReferrer` String - HTTP 레퍼러 url.
   * `userAgent` String - 요청을 시작한 유저 에이전트.
   * `extraHeaders` String - "\n"로 구분된 Extra 헤더들.
@@ -272,12 +281,14 @@ Webview에 웹 페이지 `url`을 로드합니다. `url`은 `http://`, `file://`
 
 페이지에 CSS를 삽입합니다.
 
-### `<webview>.executeJavaScript(code[, userGesture])`
+### `<webview>.executeJavaScript(code[, userGesture, callback])`
 
 * `code` String
 * `userGesture` Boolean
+* `callback` Function (optional) - 스크립트의 실행이 완료되면 호출됩니다.
+  * `result`
 
-페이지에서 자바스크립트 `code`를 실행합니다.
+페이지에서 자바스크립트 코드를 실행합니다.
 
 만약 `userGesture`가 `true`로 설정되어 있으면 페이지에 유저 제스쳐 컨텍스트를 만듭니다.
 이 옵션을 활성화 시키면 `requestFullScreen`와 같은 HTML API에서 유저의 승인을
@@ -370,7 +381,7 @@ Service worker에 대한 개발자 도구를 엽니다.
 ### `webContents.findInPage(text[, options])`
 
 * `text` String - 찾을 컨텐츠, 반드시 공백이 아니여야 합니다.
-* `options` Object (Optional)
+* `options` Object (optional)
   * `forward` Boolean - 앞에서부터 검색할지 뒤에서부터 검색할지 여부입니다. 기본값은
     `true`입니다.
   * `findNext` Boolean - 작업을 계속 처리할지 첫 요청만 처리할지 여부입니다. 기본값은
@@ -426,6 +437,10 @@ Webview 페이지를 PDF 형식으로 인쇄합니다.
 
 `event` 객체에 대해 자세히 알아보려면 [webContents.sendInputEvent](web-contents.md##webcontentssendinputeventevent)를
 참고하세요.
+
+### `<webview>.getWebContents()`
+
+이 `webview`에 해당하는 [WebContents](web-contents.md)를 반환합니다.
 
 ## DOM 이벤트
 
@@ -486,6 +501,7 @@ Returns:
 * `requestMethod` String
 * `referrer` String
 * `headers` Object
+* `resourceType` String
 
 요청한 리소스에 관해 자세한 내용을 알 수 있을 때 발생하는 이벤트입니다.
 `status`는 리소스를 다운로드할 소켓 커낵션을 나타냅니다.
@@ -557,8 +573,9 @@ Returns:
 * `result` Object
   * `requestId` Integer
   * `finalUpdate` Boolean - 더 많은 응답이 따르는 경우를 표시합니다.
-  * `matches` Integer (Optional) - 일치하는 개수.
-  * `selectionArea` Object (Optional) - 첫 일치 부위의 좌표.
+  * `activeMatchOrdinal` Integer (optional) - 활성화 일치의 위치.
+  * `matches` Integer (optional) - 일치하는 개수.
+  * `selectionArea` Object (optional) - 첫 일치 부위의 좌표.
 
 [`webContents.findInPage`](web-contents.md#webcontentsfindinpage) 요청의 결과를
 사용할 수 있을 때 발생하는 이벤트입니다.
@@ -588,7 +605,10 @@ Returns:
 
 ```javascript
 webview.addEventListener('new-window', function(e) {
-  require('electron').shell.openExternal(e.url);
+  var protocol = require('url').parse(e.url).protocol;
+  if (protocol === 'http:' || protocol === 'https:') {
+    require('electron').shell.openExternal(e.url);
+  }
 });
 ```
 

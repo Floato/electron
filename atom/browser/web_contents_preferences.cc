@@ -4,12 +4,16 @@
 
 #include "atom/browser/web_contents_preferences.h"
 
+#include <algorithm>
 #include <string>
+#include <vector>
 
+#include "atom/browser/native_window.h"
 #include "atom/common/native_mate_converters/value_converter.h"
 #include "atom/common/options_switches.h"
 #include "base/command_line.h"
 #include "base/strings/string_number_conversions.h"
+#include "content/public/browser/render_process_host.h"
 #include "content/public/common/content_switches.h"
 #include "content/public/common/web_preferences.h"
 #include "native_mate/dictionary.h"
@@ -23,9 +27,13 @@ DEFINE_WEB_CONTENTS_USER_DATA_KEY(atom::WebContentsPreferences);
 
 namespace atom {
 
+// static
+std::vector<WebContentsPreferences*> WebContentsPreferences::instances_;
+
 WebContentsPreferences::WebContentsPreferences(
     content::WebContents* web_contents,
-    const mate::Dictionary& web_preferences) {
+    const mate::Dictionary& web_preferences)
+    : web_contents_(web_contents) {
   v8::Isolate* isolate = web_preferences.isolate();
   mate::Dictionary copied(isolate, web_preferences.GetHandle()->Clone());
   // Following fields should not be stored.
@@ -35,13 +43,29 @@ WebContentsPreferences::WebContentsPreferences(
 
   mate::ConvertFromV8(isolate, copied.GetHandle(), &web_preferences_);
   web_contents->SetUserData(UserDataKey(), this);
+
+  instances_.push_back(this);
 }
 
 WebContentsPreferences::~WebContentsPreferences() {
+  instances_.erase(
+      std::remove(instances_.begin(), instances_.end(), this),
+      instances_.end());
 }
 
 void WebContentsPreferences::Merge(const base::DictionaryValue& extend) {
   web_preferences_.MergeDictionary(&extend);
+}
+
+// static
+content::WebContents* WebContentsPreferences::GetWebContentsFromProcessID(
+    int process_id) {
+  for (WebContentsPreferences* preferences : instances_) {
+    content::WebContents* web_contents = preferences->web_contents_;
+    if (web_contents->GetRenderProcessHost()->GetID() == process_id)
+      return web_contents;
+  }
+  return nullptr;
 }
 
 // static
@@ -74,11 +98,6 @@ void WebContentsPreferences::AppendExtraCommandLineSwitches(
   // Check if we have node integration specified.
   bool node_integration = true;
   web_preferences.GetBoolean(options::kNodeIntegration, &node_integration);
-  // Be compatible with old API of "node-integration" option.
-  std::string old_token;
-  if (web_preferences.GetString(options::kNodeIntegration, &old_token) &&
-      old_token != "disable")
-    node_integration = true;
   command_line->AppendSwitchASCII(switches::kNodeIntegration,
                                   node_integration ? "true" : "false");
 
@@ -98,6 +117,11 @@ void WebContentsPreferences::AppendExtraCommandLineSwitches(
       LOG(ERROR) << "preload url must be file:// protocol.";
   }
 
+  // --background-color.
+  std::string color;
+  if (web_preferences.GetString(options::kBackgroundColor, &color))
+    command_line->AppendSwitchASCII(switches::kBackgroundColor, color);
+
   // The zoom factor.
   double zoom_factor = 1.0;
   if (web_preferences.GetDouble(options::kZoomFactor, &zoom_factor) &&
@@ -108,20 +132,28 @@ void WebContentsPreferences::AppendExtraCommandLineSwitches(
   // --guest-instance-id, which is used to identify guest WebContents.
   int guest_instance_id;
   if (web_preferences.GetInteger(options::kGuestInstanceID, &guest_instance_id))
-      command_line->AppendSwitchASCII(switches::kGuestInstanceID,
-                                      base::IntToString(guest_instance_id));
+    command_line->AppendSwitchASCII(switches::kGuestInstanceID,
+                                    base::IntToString(guest_instance_id));
 
   // Pass the opener's window id.
   int opener_id;
   if (web_preferences.GetInteger(options::kOpenerID, &opener_id))
-      command_line->AppendSwitchASCII(switches::kOpenerID,
-                                      base::IntToString(opener_id));
+    command_line->AppendSwitchASCII(switches::kOpenerID,
+                                    base::IntToString(opener_id));
 
   // Enable blink features.
   std::string blink_features;
   if (web_preferences.GetString(options::kBlinkFeatures, &blink_features))
-      command_line->AppendSwitchASCII(::switches::kEnableBlinkFeatures,
-                                      blink_features);
+    command_line->AppendSwitchASCII(::switches::kEnableBlinkFeatures,
+                                    blink_features);
+
+  // The initial visibility state.
+  NativeWindow* window = NativeWindow::FromWebContents(web_contents);
+  if (window) {
+    bool visible = window->IsVisible() && !window->IsMinimized();
+    if (!visible)  // Default state is visible.
+      command_line->AppendSwitch("hidden-page");
+  }
 }
 
 // static

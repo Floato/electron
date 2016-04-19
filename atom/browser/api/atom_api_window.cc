@@ -52,6 +52,11 @@ namespace api {
 
 namespace {
 
+// This function is implemented in JavaScript
+using DeprecatedOptionsCheckCallback =
+    base::Callback<std::string(v8::Local<v8::Value>)>;
+DeprecatedOptionsCheckCallback g_deprecated_options_check;
+
 void OnCapturePageDone(
     v8::Isolate* isolate,
     const base::Callback<void(const gfx::Image&)>& callback,
@@ -109,7 +114,7 @@ void TranslateOldOptions(v8::Isolate* isolate, v8::Local<v8::Object> options) {
 
 // Converts binary data to Buffer.
 v8::Local<v8::Value> ToBuffer(v8::Isolate* isolate, void* val, int size) {
-  auto buffer = node::Buffer::New(isolate, static_cast<char*>(val), size);
+  auto buffer = node::Buffer::Copy(isolate, static_cast<char*>(val), size);
   if (buffer.IsEmpty())
     return v8::Null(isolate);
   else
@@ -135,6 +140,10 @@ Window::Window(v8::Isolate* isolate, const mate::Dictionary& options) {
     web_preferences.Set(options::kPreloadScript, value);
   if (options.Get(options::kZoomFactor, &value))
     web_preferences.Set(options::kZoomFactor, value);
+
+  // Copy the backgroundColor to webContents.
+  if (options.Get(options::kBackgroundColor, &value))
+    web_preferences.Set(options::kBackgroundColor, value);
 
   // Creates the WebContents used by BrowserWindow.
   auto web_contents = WebContents::Create(isolate, web_preferences);
@@ -191,6 +200,14 @@ void Window::OnWindowFocus() {
   Emit("focus");
 }
 
+void Window::OnWindowShow() {
+  Emit("show");
+}
+
+void Window::OnWindowHide() {
+  Emit("hide");
+}
+
 void Window::OnWindowMaximize() {
   Emit("maximize");
 }
@@ -233,6 +250,10 @@ void Window::OnWindowScrollTouchBegin() {
 
 void Window::OnWindowScrollTouchEnd() {
   Emit("scroll-touch-end");
+}
+
+void Window::OnWindowSwipe(const std::string& direction) {
+  Emit("swipe", direction);
 }
 
 void Window::OnWindowEnterHtmlFullScreen() {
@@ -283,6 +304,13 @@ mate::Wrappable* Window::New(v8::Isolate* isolate, mate::Arguments* args) {
     options = mate::Dictionary::CreateEmpty(isolate);
   }
 
+  std::string deprecation_message = g_deprecated_options_check.Run(
+      options.GetHandle());
+  if (deprecation_message.length() > 0) {
+    args->ThrowError(deprecation_message);
+    return nullptr;
+  }
+
   return new Window(isolate, options);
 }
 
@@ -292,6 +320,10 @@ void Window::Close() {
 
 void Window::Focus() {
   window_->Focus(true);
+}
+
+void Window::Blur() {
+  window_->Focus(false);
 }
 
 bool Window::IsFocused() {
@@ -688,6 +720,7 @@ void Window::BuildPrototype(v8::Isolate* isolate,
       .MakeDestroyable()
       .SetMethod("close", &Window::Close)
       .SetMethod("focus", &Window::Focus)
+      .SetMethod("blur", &Window::Blur)
       .SetMethod("isFocused", &Window::IsFocused)
       .SetMethod("show", &Window::Show)
       .SetMethod("showInactive", &Window::ShowInactive)
@@ -784,6 +817,10 @@ v8::Local<v8::Value> Window::From(v8::Isolate* isolate,
     return v8::Null(isolate);
 }
 
+void SetDeprecatedOptionsCheck(const DeprecatedOptionsCheckCallback& callback) {
+  g_deprecated_options_check = callback;
+}
+
 }  // namespace api
 
 }  // namespace atom
@@ -806,6 +843,8 @@ void Initialize(v8::Local<v8::Object> exports, v8::Local<v8::Value> unused,
 
   mate::Dictionary dict(isolate, exports);
   dict.Set("BrowserWindow", browser_window);
+  dict.SetMethod("_setDeprecatedOptionsCheck",
+                 &atom::api::SetDeprecatedOptionsCheck);
 }
 
 }  // namespace

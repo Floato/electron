@@ -98,10 +98,6 @@ void AtomMainDelegate::PreSandboxStartup() {
   std::string process_type = command_line->GetSwitchValueASCII(
       switches::kProcessType);
 
-  if (process_type == switches::kUtilityProcess) {
-    AtomContentUtilityClient::PreSandboxStartup();
-  }
-
   // Only append arguments for browser process.
   if (!IsBrowserProcess(command_line))
     return;
@@ -135,7 +131,7 @@ content::ContentUtilityClient* AtomMainDelegate::CreateContentUtilityClient() {
 }
 
 scoped_ptr<brightray::ContentClient> AtomMainDelegate::CreateContentClient() {
-  return scoped_ptr<brightray::ContentClient>(new AtomContentClient).Pass();
+  return scoped_ptr<brightray::ContentClient>(new AtomContentClient);
 }
 
 }  // namespace atom

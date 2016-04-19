@@ -76,6 +76,9 @@ class CommonWebContentsDelegate
   void ExitFullscreenModeForTab(content::WebContents* source) override;
   bool IsFullscreenForTabOrPending(
       const content::WebContents* source) const override;
+  content::SecurityStyle GetSecurityStyle(
+      content::WebContents* web_contents,
+      content::SecurityStyleExplanations* explanations) override;
 
   // brightray::InspectableWebContentsDelegate:
   void DevToolsSaveToFile(const std::string& url,
@@ -83,6 +86,7 @@ class CommonWebContentsDelegate
                           bool save_as) override;
   void DevToolsAppendToFile(const std::string& url,
                             const std::string& content) override;
+  void DevToolsRequestFileSystems() override;
   void DevToolsAddFileSystem(const base::FilePath& path) override;
   void DevToolsRemoveFileSystem(
       const base::FilePath& file_system_path) override;
@@ -127,11 +131,6 @@ class CommonWebContentsDelegate
   // Maps url to file path, used by the file requests sent from devtools.
   typedef std::map<std::string, base::FilePath> PathsMap;
   PathsMap saved_files_;
-
-  // Maps file system id to file path, used by the file system requests
-  // sent from devtools.
-  typedef std::map<std::string, base::FilePath> WorkspaceMap;
-  WorkspaceMap saved_paths_;
 
   DISALLOW_COPY_AND_ASSIGN(CommonWebContentsDelegate);
 };

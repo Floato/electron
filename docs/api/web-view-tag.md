@@ -18,7 +18,7 @@ form, the `webview` tag includes the `src` of the web page and css styles that
 control the appearance of the `webview` container:
 
 ```html
-<webview id="foo" src="https://www.github.com/" style="display:inline-block; width:640px; height:480px"></webview>
+<webview id="foo" src="https://www.github.com/" style="display:inline-flex; width:640px; height:480px"></webview>
 ```
 
 If you want to control the guest content in any way, you can write JavaScript
@@ -43,6 +43,36 @@ and displays a "loading..." message during the load time:
     webview.addEventListener("did-stop-loading", loadstop);
   }
 </script>
+```
+
+## CSS Styling Notes
+
+Please note that the `webview` tag's style uses `display:flex;` internally to 
+ensure the child `object` element fills the full height and width of its `webview` 
+container when used with traditional and flexbox layouts (since v0.36.11). Please 
+do not overwrite the default `display:flex;` CSS property, unless specifying 
+`display:inline-flex;` for inline layout.
+
+`webview` has issues being hidden using the `hidden` attribute or using `display: none;`. 
+It can cause unusual rendering behaviour within its child `browserplugin` object 
+and the web page is reloaded, when the `webview` is un-hidden, as opposed to just 
+becoming visible again. The recommended approach is to hide the `webview` using 
+CSS by zeroing the `width` & `height` and allowing the element to shrink to the 0px 
+dimensions via `flex`.
+
+```html
+<style>
+  webview {
+    display:inline-flex;
+    width:640px;
+    height:480px;
+  }
+  webview.hide {
+    flex: 0 1;
+    width: 0px;
+    height: 0px; 
+  }
+</style>
 ```
 
 ## Tag Attributes
@@ -83,6 +113,9 @@ than the minimum values or greater than the maximum.
 
 If "on", the guest page in `webview` will have node integration and can use node
 APIs like `require` and `process` to access low level system resources.
+
+**Note:** Node integration will always be disabled in the `webview` if it is
+disabled on the parent window.
 
 ### `plugins`
 
@@ -184,7 +217,7 @@ webview.addEventListener("dom-ready", function() {
 ### `<webview>.loadURL(url[, options])`
 
 * `url` URL
-* `options` Object (optional), properties:
+* `options` Object (optional)
   * `httpReferrer` String - A HTTP Referrer url.
   * `userAgent` String - A user agent originating the request.
   * `extraHeaders` String - Extra headers separated by "\n"
@@ -279,10 +312,12 @@ Returns a `String` representing the user agent for guest page.
 
 Injects CSS into the guest page.
 
-### `<webview>.executeJavaScript(code, userGesture)`
+### `<webview>.executeJavaScript(code, userGesture, callback)`
 
 * `code` String
 * `userGesture` Boolean - Default `false`.
+* `callback` Function (optional) - Called after script has been executed.
+  * `result`
 
 Evaluates `code` in page. If `userGesture` is set, it will create the user
 gesture context in the page. HTML APIs like `requestFullScreen`, which require
@@ -382,7 +417,7 @@ Inserts `text` to the focused element.
 ### `<webview>.findInPage(text[, options])`
 
 * `text` String - Content to be searched, must not be empty.
-* `options` Object (Optional)
+* `options` Object (optional)
   * `forward` Boolean - Whether to search forward or backward, defaults to `true`.
   * `findNext` Boolean - Whether the operation is first request or a follow up,
     defaults to `false`.
@@ -438,6 +473,10 @@ Sends an input `event` to the page.
 See [webContents.sendInputEvent](web-contents.md##webcontentssendinputeventevent)
 for detailed description of `event` object.
 
+### `<webview>.getWebContents()`
+
+Returns the [WebContents](web-contents.md) associated with this `webview`.
+
 ## DOM events
 
 The following DOM events are available to the `webview` tag:
@@ -465,6 +504,7 @@ Returns:
 * `errorCode` Integer
 * `errorDescription` String
 * `validatedURL` String
+* `isMainFrame` Boolean
 
 This event is like `did-finish-load`, but fired when the load failed or was
 cancelled, e.g. `window.stop()` is invoked.
@@ -496,6 +536,7 @@ Returns:
 * `requestMethod` String
 * `referrer` String
 * `headers` Object
+* `resourceType` String
 
 Fired when details regarding a requested resource is available.
 `status` indicates socket connection to download the resource.
@@ -522,7 +563,7 @@ Returns:
 * `explicitSet` Boolean
 
 Fired when page title is set during navigation. `explicitSet` is false when
-title is synthesised from file url.
+title is synthesized from file url.
 
 ### Event: 'page-favicon-updated'
 
@@ -567,8 +608,9 @@ Returns:
 * `result` Object
   * `requestId` Integer
   * `finalUpdate` Boolean - Indicates if more responses are to follow.
-  * `matches` Integer (Optional) - Number of Matches.
-  * `selectionArea` Object (Optional) - Coordinates of first match region.
+  * `activeMatchOrdinal` Integer (optional) - Position of the active match.
+  * `matches` Integer (optional) - Number of Matches.
+  * `selectionArea` Object (optional) - Coordinates of first match region.
 
 Fired when a result is available for
 [`webview.findInPage`](web-view-tag.md#webviewtagfindinpage) request.
@@ -599,7 +641,10 @@ The following example code opens the new url in system's default browser.
 
 ```javascript
 webview.addEventListener('new-window', function(e) {
-  require('electron').shell.openExternal(e.url);
+  var protocol = require('url').parse(e.url).protocol;
+  if (protocol === 'http:' || protocol === 'https:') {
+    require('electron').shell.openExternal(e.url);
+  }
 });
 ```
 
@@ -717,6 +762,10 @@ Emitted when media starts playing.
 Emitted when media is paused or done playing.
 
 ### Event: 'did-change-theme-color'
+
+Returns:
+
+* `themeColor` String
 
 Emitted when a page's theme color changes. This is usually due to encountering a meta tag:
 

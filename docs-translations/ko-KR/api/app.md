@@ -92,7 +92,7 @@ Returns:
 
 이 이벤트를 처리할 땐 반드시 `event.preventDefault()`를 호출해야 합니다.
 
-Windows에선 `process.argv`를 통해 파일 경로를 얻을 수 있습니다.
+Windows에선 `process.argv` (메인 프로세스에서)를 통해 파일 경로를 얻을 수 있습니다.
 
 ### Event: 'open-url' _OS X_
 
@@ -164,7 +164,7 @@ Returns:
 기본 동작을 방지하고 인증을 승인할 수 있습니다.
 
 ```javascript
-session.on('certificate-error', function(event, webContents, url, error, certificate, callback) {
+app.on('certificate-error', function(event, webContents, url, error, certificate, callback) {
   if (url == "https://github.com") {
     // Verification logic.
     event.preventDefault();
@@ -236,6 +236,10 @@ app.on('login', function(event, webContents, request, authInfo, callback) {
 
 GPU가 작동하던 중 크래시가 일어났을 때 발생하는 이벤트입니다.
 
+### Event: 'platform-theme-changed' _OS X_
+
+시스템의 다크 모드 테마가 토글되면 발생하는 이벤트입니다.
+
 ## Methods
 
 `app` 객체는 다음과 같은 메서드를 가지고 있습니다:
@@ -252,14 +256,6 @@ GPU가 작동하던 중 크래시가 일어났을 때 발생하는 이벤트입�
 `beforeunload` 이벤트 핸들러에서 `false`를 반환했을 때 윈도우 종료가 취소 될 수
 있습니다.
 
-### `app.hide()` _OS X_
-
-최소화를 하지 않고 어플리케이션의 모든 윈도우들을 숨깁니다.
-
-### `app.show()` _OS X_
-
-숨긴 어플리케이션 윈도우들을 다시 보이게 만듭니다. 자동으로 포커스되지 않습니다.
-
 ### `app.exit(exitCode)`
 
 * `exitCode` Integer
@@ -268,6 +264,19 @@ GPU가 작동하던 중 크래시가 일어났을 때 발생하는 이벤트입�
 
 모든 윈도우는 사용자의 동의 여부에 상관없이 즉시 종료되며 `before-quit` 이벤트와
 `will-quit` 이벤트가 발생하지 않습니다.
+
+### `app.focus()`
+
+Linux에선, 첫 번째로 보여지는 윈도우가 포커스됩니다. OS X에선, 어플리케이션을 활성화
+앱 상태로 만듭니다. Windows에선, 어플리케이션의 첫 윈도우에 포커스 됩니다.
+
+### `app.hide()` _OS X_
+
+최소화를 하지 않고 어플리케이션의 모든 윈도우들을 숨깁니다.
+
+### `app.show()` _OS X_
+
+숨긴 어플리케이션 윈도우들을 다시 보이게 만듭니다. 자동으로 포커스되지 않습니다.
 
 ### `app.getAppPath()`
 
@@ -333,10 +342,20 @@ npm 모듈 규칙에 따라 대부분의 경우 `package.json`의 `name` 필드�
 반드시 이 필드도 같이 지정해야 합니다. 이 필드는 맨 앞글자가 대문자인 어플리케이션
 전체 이름을 지정해야 합니다.
 
+### `app.setName(name)`
+
+* `name` String
+
+현재 어플리케이션의 이름을 덮어씌웁니다.
+
 ### `app.getLocale()`
 
 현재 어플리케이션의 [로케일](https://ko.wikipedia.org/wiki/%EB%A1%9C%EC%BC%80%EC%9D%BC)을
 반환합니다.
+
+**참고:** 패키징된 앱을 배포할 때, `locales` 폴더도 같이 배포해야 합니다.
+
+**참고:** Windows에선 `ready` 이벤트가 발생한 이후에 이 메서드를 사용해야 합니다.
 
 ### `app.addRecentDocument(path)` _OS X_ _Windows_
 
@@ -350,6 +369,32 @@ npm 모듈 규칙에 따라 대부분의 경우 `package.json`의 `name` 필드�
 ### `app.clearRecentDocuments()` _OS X_ _Windows_
 
 최근 문서 목록을 모두 비웁니다.
+
+### `app.setAsDefaultProtocolClient(protocol)` _OS X_ _Windows_
+
+* `protocol` String - 프로토콜의 이름, `://` 제외. 만약 앱을 통해 `electron://`과
+  같은 링크를 처리하고 싶다면, 이 메서드에 `electron` 인수를 담아 호출하면 됩니다.
+
+이 메서드는 지정한 프로토콜(URI scheme)에 대해 현재 실행파일을 기본 핸들러로
+등록합니다. 이를 통해 운영체제와 더 가깝게 통합할 수 있습니다. 한 번 등록되면,
+`your-protocol://`과 같은 모든 링크에 대해 호출시 현재 실행 파일이 실행됩니다.
+모든 링크, 프로토콜을 포함하여 어플리케이션의 인수로 전달됩니다.
+
+**참고:** OS X에선, 어플리케이션의 `info.plist`에 등록해둔 프로토콜만 사용할 수
+있습니다. 이는 런타임에서 변경될 수 없습니다. 이 파일은 간단히 텍스트 에디터를
+사용하거나, 어플리케이션을 빌드할 때 스크립트가 생성되도록 할 수 있습니다. 자세한
+내용은 [Apple의 참조 문서를][CFBundleURLTypes] 확인하세요.
+
+이 API는 내부적으로 Windows 레지스트리와 LSSetDefaultHandlerForURLScheme를 사용합니다.
+
+### `app.removeAsDefaultProtocolClient(protocol)` _Windows_
+
+* `protocol` String - 프로토콜의 이름, `://` 제외.
+
+이 메서드는 현재 실행파일이 지정한 프로토콜(URI scheme)에 대해 기본 핸들러인지를
+확인합니다. 만약 그렇다면, 이 메서드는 앱을 기본 핸들러에서 제거합니다.
+
+**참고:** OS X에서는 앱을 제거하면 자동으로 기본 프로토콜 핸들러에서 제거됩니다.
 
 ### `app.setUserTasks(tasks)` _Windows_
 
@@ -471,6 +516,11 @@ if (browserOptions.transparent) {
 }
 ```
 
+### `app.isDarkMode()` _OS X_
+
+이 메서드는 시스템이 다크 모드 상태인 경우 `true`를 반환하고 아닐 경우 `false`를
+반환합니다.
+
 ### `app.commandLine.appendSwitch(switch[, value])`
 
 Chrominum의 명령줄에 스위치를 추가합니다. `value`는 추가적인 값을 뜻하며 옵션입니다.
@@ -523,7 +573,7 @@ dock 아이콘을 표시합니다.
 
 ### `app.dock.setMenu(menu)` _OS X_
 
-* `menu` Menu
+* `menu` [Menu](menu.md)
 
 어플리케이션의 [dock menu][dock-menu]를 설정합니다.
 
@@ -536,3 +586,4 @@ dock 아이콘의 `image`를 설정합니다.
 [dock-menu]:https://developer.apple.com/library/mac/documentation/Carbon/Conceptual/customizing_docktile/concepts/dockconcepts.html#//apple_ref/doc/uid/TP30000986-CH2-TPXREF103
 [tasks]:http://msdn.microsoft.com/en-us/library/windows/desktop/dd378460(v=vs.85).aspx#tasks
 [app-user-model-id]: https://msdn.microsoft.com/en-us/library/windows/desktop/dd378459(v=vs.85).aspx
+[CFBundleURLTypes]: https://developer.apple.com/library/ios/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html#//apple_ref/doc/uid/TP40009249-102207-TPXREF115

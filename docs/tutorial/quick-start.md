@@ -34,8 +34,8 @@ The main process creates web pages by creating `BrowserWindow` instances. Each
 is also terminated.
 
 The main process manages all web pages and their corresponding renderer
-processes. Each renderer process is isolated and only cares
-about the web page running in it.
+processes. Each renderer process is isolated and only cares about the web page
+running in it.
 
 In web pages, calling native GUI related APIs is not allowed because managing
 native GUI resources in web pages is very dangerous and it is easy to leak
@@ -43,9 +43,11 @@ resources. If you want to perform GUI operations in a web page, the renderer
 process of the web page must communicate with the main process to request that
 the main process perform those operations.
 
-In Electron, we have provided the [ipc](../api/ipc-renderer.md) module for
-communication between the main process and renderer process. There is also a
-[remote](../api/remote.md) module for RPC style communication.
+In Electron, we have several ways to communicate between the main process and
+renderer processes. Like [`ipcRenderer`](../api/ipc-renderer.md) and
+[`ipcMain`](../api/ipc-main.md) modules for sending messages, and the
+[remote](../api/remote.md) module for RPC style communication. There is also
+an FAQ entry on [how to share data between web pages][share-data].
 
 ## Write your First Electron App
 
@@ -182,7 +184,7 @@ $ ./Electron.app/Contents/MacOS/Electron your-app/
 ```
 
 `Electron.app` here is part of the Electron's release package, you can download
-it from [here](https://github.com/atom/electron/releases).
+it from [here](https://github.com/electron/electron/releases).
 
 ### Run as a distribution
 
@@ -192,16 +194,18 @@ and then executing the packaged app.
 
 ### Try this Example
 
-Clone and run the code in this tutorial by using the [`atom/electron-quick-start`](https://github.com/atom/electron-quick-start)
+Clone and run the code in this tutorial by using the [`atom/electron-quick-start`](https://github.com/electron/electron-quick-start)
 repository.
 
 **Note**: Running this requires [Git](https://git-scm.com) and [Node.js](https://nodejs.org/en/download/) (which includes [npm](https://npmjs.org)) on your system.
 
 ```bash
 # Clone the repository
-$ git clone https://github.com/atom/electron-quick-start
+$ git clone https://github.com/electron/electron-quick-start
 # Go into the repository
 $ cd electron-quick-start
 # Install dependencies and run the app
 $ npm install && npm start
 ```
+
+[share-data]: ../faq/electron-faq.md#how-to-share-data-between-web-pages
