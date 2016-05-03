@@ -364,6 +364,7 @@
       'atom/common/native_mate_converters/string_map_converter.cc',
       'atom/common/native_mate_converters/string_map_converter.h',
       'atom/common/native_mate_converters/string16_converter.h',
+      'atom/common/native_mate_converters/ui_base_types_converter.h',
       'atom/common/native_mate_converters/v8_value_converter.cc',
       'atom/common/native_mate_converters/v8_value_converter.h',
       'atom/common/native_mate_converters/value_converter.cc',
