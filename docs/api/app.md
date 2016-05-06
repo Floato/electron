@@ -6,8 +6,8 @@ The following example shows how to quit the application when the last window is
 closed:
 
 ```javascript
-const { app } = require('electron');
-app.on('window-all-closed', () => {
+const app = require('electron').app;
+app.on('window-all-closed', function() {
   app.quit();
 });
 ```
@@ -108,27 +108,8 @@ Returns:
 * `event` Event
 * `hasVisibleWindows` Boolean
 
-Emitted when the application is activated, which usually happens when the user clicks on
-the application's dock icon.
-
-### Event: 'continue-activity' _OS X_
-
-Returns:
-
-* `event` Event
-* `type` String - A string identifying the activity. Maps to
-  [`NSUserActivity.activityType`][activity-type].
-* `userInfo` Object - Contains app-specific state stored by the activity on
-  another device.
-
-Emitted during [Handoff][handoff] when an activity from a different device wants
-to be resumed. You should call `event.preventDefault()` if you want to handle
-this event.
-
-A user activity can be continued only in an app that has the same developer Team
-ID as the activity's source app and that supports the activity's type.
-Supported activity types are specified in the app's `Info.plist` under the
-`NSUserActivityTypes` key.
+Emitted when the application is activated, which usually happens when clicks on
+the applications's dock icon.
 
 ### Event: 'browser-window-blur'
 
@@ -237,7 +218,7 @@ should prevent the default behavior with `event.preventDefault()` and call
 `callback(username, password)` with the credentials.
 
 ```javascript
-app.on('login', (event, webContents, request, authInfo, callback) => {
+app.on('login', function(event, webContents, request, authInfo, callback) {
   event.preventDefault();
   callback('username', 'secret');
 })
@@ -481,9 +462,9 @@ An example of activating the window of primary instance when a second instance
 starts:
 
 ```javascript
-let myWindow = null;
+var myWindow = null;
 
-const shouldQuit = app.makeSingleInstance((commandLine, workingDirectory) => {
+var shouldQuit = app.makeSingleInstance(function(commandLine, workingDirectory) {
   // Someone tried to run a second instance, we should focus our window.
   if (myWindow) {
     if (myWindow.isMinimized()) myWindow.restore();
@@ -497,22 +478,9 @@ if (shouldQuit) {
 }
 
 // Create myWindow, load the rest of the app, etc...
-app.on('ready', () => {
+app.on('ready', function() {
 });
 ```
-
-### `app.setUserActivity(type, userInfo)` _OS X_
-
-* `type` String - Uniquely identifies the activity. Maps to
-  [`NSUserActivity.activityType`][activity-type].
-* `userInfo` Object - App-specific state to store for use by another device.
-
-Creates an `NSUserActivity` and sets it as the current activity. The activity
-is eligible for [Handoff][handoff] to another device afterward.
-
-### `app.getCurrentActivityType()` _OS X_
-
-Returns the type of the currently running activity.
 
 ### `app.setAppUserModelId(id)` _Windows_
 
@@ -601,5 +569,3 @@ Sets the `image` associated with this dock icon.
 [app-user-model-id]: https://msdn.microsoft.com/en-us/library/windows/desktop/dd378459(v=vs.85).aspx
 [CFBundleURLTypes]: https://developer.apple.com/library/ios/documentation/General/Reference/InfoPlistKeyReference/Articles/CoreFoundationKeys.html#//apple_ref/doc/uid/TP40009249-102207-TPXREF115
 [LSCopyDefaultHandlerForURLScheme]: https://developer.apple.com/library/mac/documentation/Carbon/Reference/LaunchServicesReference/#//apple_ref/c/func/LSCopyDefaultHandlerForURLScheme
-[handoff]: https://developer.apple.com/library/ios/documentation/UserExperience/Conceptual/Handoff/HandoffFundamentals/HandoffFundamentals.html
-[activity-type]: https://developer.apple.com/library/ios/documentation/Foundation/Reference/NSUserActivity_Class/index.html#//apple_ref/occ/instp/NSUserActivity/activityType
