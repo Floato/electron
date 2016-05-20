@@ -66,9 +66,6 @@ NativeWindow::NativeWindow(
   // mode.
   ui::GpuSwitchingManager::SetTransparent(transparent_);
 
-  // Read icon before window is created.
-  options.Get(options::kIcon, &icon_);
-
   WindowList::AddWindow(this);
 }
 
