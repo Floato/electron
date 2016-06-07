@@ -1,9 +1,10 @@
 ﻿# Accelerator
 
-Accelerator는 키보드 단축키를 표현하는 문자열입니다, 여러 혼합키와 키코드를 `+` 문자를
-이용하여 결합할 수 있습니다.
+> 키보드 단축키를 정의합니다.
 
-예제:
+Accelerator는 `+` 문자를 통해 여러 혼합키와 키코드를 결합할 수 있습니다.
+
+예시:
 
 * `CommandOrControl+A`
 * `CommandOrControl+Shift+Z`
@@ -38,6 +39,7 @@ Linux와 Windows에서는 `Command`키가 없으므로 작동하지 않습니다
 * `~`, `!`, `@`, `#`, `$`, etc 와 같은 구두점 기호들
 * `Plus`
 * `Space`
+* `Tab`
 * `Backspace`
 * `Delete`
 * `Insert`

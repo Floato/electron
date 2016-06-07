@@ -9,8 +9,10 @@
 
 #include "atom/browser/ui/views/menu_bar.h"
 #include "atom/browser/ui/views/menu_layout.h"
+#include "atom/browser/window_list.h"
 #include "atom/common/color_util.h"
 #include "atom/common/draggable_region.h"
+#include "atom/common/native_mate_converters/image_converter.h"
 #include "atom/common/options_switches.h"
 #include "base/strings/utf_string_conversions.h"
 #include "brightray/browser/inspectable_web_contents.h"
@@ -40,6 +42,7 @@
 #include "chrome/browser/ui/libgtk2ui/unity_service.h"
 #include "ui/base/x/x11_util.h"
 #include "ui/gfx/x/x11_types.h"
+#include "ui/views/widget/desktop_aura/desktop_window_tree_host_x11.h"
 #include "ui/views/window/native_frame_view.h"
 #elif defined(OS_WIN)
 #include "atom/browser/ui/views/win_frame_view.h"
@@ -85,6 +88,21 @@ bool IsAltModifier(const content::NativeWebKeyboardEvent& event) {
          (modifiers == (Modifiers::AltKey | Modifiers::IsLeft)) ||
          (modifiers == (Modifiers::AltKey | Modifiers::IsRight));
 }
+
+#if defined(USE_X11)
+int SendClientEvent(XDisplay* display, ::Window window, const char* msg) {
+  XEvent event = {};
+  event.xclient.type = ClientMessage;
+  event.xclient.send_event = True;
+  event.xclient.message_type = XInternAtom(display, msg, False);
+  event.xclient.window = window;
+  event.xclient.format = 32;
+  XSendEvent(display, DefaultRootWindow(display), False,
+             SubstructureRedirectMask | SubstructureNotifyMask, &event);
+  XFlush(display);
+  return True;
+}
+#endif
 
 class NativeWindowClientView : public views::ClientView {
  public:
@@ -273,7 +291,6 @@ NativeWindowViews::NativeWindowViews(
       use_content_size_)
     size = ContentSizeToWindowSize(size);
 
-  window_->UpdateWindowIcon();
   window_->CenterWindow(size);
   Layout();
 }
@@ -283,6 +300,11 @@ NativeWindowViews::~NativeWindowViews() {
 }
 
 void NativeWindowViews::Close() {
+  if (!IsClosable()) {
+    WindowList::WindowCloseCancelled(this);
+    return;
+  }
+
   window_->Close();
 }
 
@@ -291,10 +313,19 @@ void NativeWindowViews::CloseImmediately() {
 }
 
 void NativeWindowViews::Focus(bool focus) {
-  if (focus)
+  if (focus) {
+#if defined(OS_WIN)
     window_->Activate();
-  else
+#elif defined(USE_X11)
+    // The "Activate" implementation of Chromium is not reliable on Linux.
+    ::Window window = GetAcceleratedWidget();
+    XDisplay* xdisplay = gfx::GetXDisplay();
+    SendClientEvent(xdisplay, window, "_NET_ACTIVE_WINDOW");
+    XMapRaised(xdisplay, window);
+#endif
+  } else {
     window_->Deactivate();
+  }
 }
 
 bool NativeWindowViews::IsFocused() {
@@ -623,7 +654,9 @@ void NativeWindowViews::SetBackgroundColor(const std::string& color_name) {
   // Set the background color of native window.
   HBRUSH brush = CreateSolidBrush(skia::SkColorToCOLORREF(background_color));
   ULONG_PTR previous_brush = SetClassLongPtr(
-      GetAcceleratedWidget(), GCLP_HBRBACKGROUND, (LONG)brush);
+      GetAcceleratedWidget(),
+      GCLP_HBRBACKGROUND,
+      reinterpret_cast<LONG_PTR>(brush));
   if (previous_brush)
     DeleteObject((HBRUSH)previous_brush);
 #endif
@@ -637,6 +670,26 @@ void NativeWindowViews::SetHasShadow(bool has_shadow) {
 
 bool NativeWindowViews::HasShadow() {
   return wm::GetShadowType(GetNativeWindow()) != wm::SHADOW_TYPE_NONE;
+}
+
+void NativeWindowViews::SetIgnoreMouseEvents(bool ignore) {
+#if defined(OS_WIN)
+  LONG ex_style = ::GetWindowLong(GetAcceleratedWidget(), GWL_EXSTYLE);
+  if (ignore)
+    ex_style |= (WS_EX_TRANSPARENT | WS_EX_LAYERED);
+  else
+    ex_style &= ~(WS_EX_TRANSPARENT | WS_EX_LAYERED);
+  ::SetWindowLong(GetAcceleratedWidget(), GWL_EXSTYLE, ex_style);
+#elif defined(USE_X11)
+  if (ignore) {
+    XRectangle r = {0, 0, 1, 1};
+    XShapeCombineRectangles(gfx::GetXDisplay(), GetAcceleratedWidget(),
+                            ShapeInput, 0, 0, &r, 1, ShapeSet, YXBanded);
+  } else {
+    XShapeCombineMask(gfx::GetXDisplay(), GetAcceleratedWidget(),
+                      ShapeInput, 0, 0, None, ShapeSet);
+  }
+#endif
 }
 
 void NativeWindowViews::SetMenu(ui::MenuModel* menu_model) {
@@ -776,6 +829,27 @@ gfx::AcceleratedWidget NativeWindowViews::GetAcceleratedWidget() {
   return GetNativeWindow()->GetHost()->GetAcceleratedWidget();
 }
 
+#if defined(OS_WIN)
+void NativeWindowViews::SetIcon(HICON window_icon, HICON app_icon) {
+  // We are responsible for storing the images.
+  window_icon_ = base::win::ScopedHICON(CopyIcon(window_icon));
+  app_icon_ = base::win::ScopedHICON(CopyIcon(app_icon));
+
+  HWND hwnd = GetAcceleratedWidget();
+  SendMessage(hwnd, WM_SETICON, ICON_SMALL,
+              reinterpret_cast<LPARAM>(window_icon_.get()));
+  SendMessage(hwnd, WM_SETICON, ICON_BIG,
+              reinterpret_cast<LPARAM>(app_icon_.get()));
+}
+#elif defined(USE_X11)
+void NativeWindowViews::SetIcon(const gfx::ImageSkia& icon) {
+  views::DesktopWindowTreeHostX11* tree_host =
+      views::DesktopWindowTreeHostX11::GetHostForXID(GetAcceleratedWidget());
+  static_cast<views::DesktopWindowTreeHost*>(tree_host)->SetWindowIcons(
+      icon, icon);
+}
+#endif
+
 void NativeWindowViews::OnWidgetActivationChanged(
     views::Widget* widget, bool active) {
   if (widget != window_.get())
@@ -838,14 +912,6 @@ base::string16 NativeWindowViews::GetWindowTitle() const {
 
 bool NativeWindowViews::ShouldHandleSystemCommands() const {
   return true;
-}
-
-gfx::ImageSkia NativeWindowViews::GetWindowAppIcon() {
-  return icon();
-}
-
-gfx::ImageSkia NativeWindowViews::GetWindowIcon() {
-  return GetWindowAppIcon();
 }
 
 views::Widget* NativeWindowViews::GetWidget() {

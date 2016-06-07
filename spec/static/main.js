@@ -6,9 +6,12 @@ const app = electron.app
 const ipcMain = electron.ipcMain
 const dialog = electron.dialog
 const BrowserWindow = electron.BrowserWindow
+const protocol = electron.protocol
 
+const fs = require('fs')
 const path = require('path')
 const url = require('url')
+const util = require('util')
 
 var argv = require('yargs')
   .boolean('ci')
@@ -35,13 +38,18 @@ ipcMain.on('message', function (event, arg) {
   event.sender.send('message', arg)
 })
 
-ipcMain.on('console.log', function (event, args) {
-  console.error.apply(console, args)
-})
-
-ipcMain.on('console.error', function (event, args) {
-  console.error.apply(console, args)
-})
+// Write output to file if OUTPUT_TO_FILE is defined.
+const outputToFile = process.env.OUTPUT_TO_FILE
+const print = function (_, args) {
+  let output = util.format.apply(null, args)
+  if (outputToFile) {
+    fs.appendFileSync(outputToFile, output + '\n')
+  } else {
+    console.error(output)
+  }
+}
+ipcMain.on('console.log', print)
+ipcMain.on('console.error', print)
 
 ipcMain.on('process.exit', function (event, code) {
   process.exit(code)
@@ -63,6 +71,10 @@ if (global.isCi) {
     process.exit(1)
   })
 }
+
+// Register app as standard scheme.
+global.standardScheme = 'app'
+protocol.registerStandardSchemes([global.standardScheme])
 
 app.on('window-all-closed', function () {
   app.quit()

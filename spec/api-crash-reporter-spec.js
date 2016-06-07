@@ -44,7 +44,7 @@ describe('crash-reporter module', function () {
         if (called) return
         called = true
         assert.equal(fields['prod'], 'Electron')
-        assert.equal(fields['ver'], process.versions['electron'])
+        assert.equal(fields['ver'], process.versions.electron)
         assert.equal(fields['process_type'], 'renderer')
         assert.equal(fields['platform'], process.platform)
         assert.equal(fields['extra1'], 'extra1')
@@ -81,12 +81,12 @@ describe('crash-reporter module', function () {
         crashReporter.start({
           companyName: 'Missing submitURL'
         })
-      })
+      }, /submitURL is a required option to crashReporter\.start/)
       assert.throws(function () {
         crashReporter.start({
           submitURL: 'Missing companyName'
         })
-      })
+      }, /companyName is a required option to crashReporter\.start/)
     })
   })
 })

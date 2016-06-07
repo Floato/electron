@@ -14,6 +14,7 @@
 #include "base/strings/string16.h"
 #include "atom/browser/browser_observer.h"
 #include "atom/browser/window_list_observer.h"
+#include "native_mate/arguments.h"
 
 #if defined(OS_WIN)
 #include "base/files/file_path.h"
@@ -82,6 +83,9 @@ class Browser : public WindowListObserver {
   // Set as default handler for a protocol.
   bool SetAsDefaultProtocolClient(const std::string& protocol);
 
+  // Query the current state of default handler for a protocol.
+  bool IsDefaultProtocolClient(const std::string& protocol);
+
 #if defined(OS_MACOSX)
   // Hide the application.
   void Hide();
@@ -89,8 +93,17 @@ class Browser : public WindowListObserver {
   // Show the application.
   void Show();
 
-  // Check if the system is in Dark Mode.
-  bool IsDarkMode();
+  // Creates an activity and sets it as the one currently in use.
+  void SetUserActivity(const std::string& type,
+                       const base::DictionaryValue& user_info,
+                       mate::Arguments* args);
+
+  // Returns the type name of the current user activity.
+  std::string GetCurrentActivityType();
+
+  // Resumes an activity via hand-off.
+  bool ContinueUserActivity(const std::string& type,
+                            const base::DictionaryValue& user_info);
 
   // Bounce the dock icon.
   enum BounceType {
@@ -99,6 +112,9 @@ class Browser : public WindowListObserver {
   };
   int DockBounce(BounceType type);
   void DockCancelBounce(int request_id);
+
+  // Bounce the Downloads stack.
+  void DockDownloadFinished(const std::string& filePath);
 
   // Set/Get dock's badge text.
   void DockSetBadgeText(const std::string& label);
@@ -150,9 +166,6 @@ class Browser : public WindowListObserver {
 
   // Request basic auth login.
   void RequestLogin(LoginHandler* login_handler);
-
-  // Tell the application that plaform's theme changed.
-  void PlatformThemeChanged();
 
   void AddObserver(BrowserObserver* obs) {
     observers_.AddObserver(obs);

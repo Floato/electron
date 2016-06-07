@@ -1,7 +1,9 @@
 # Accelerator
 
-An accelerator is a string that represents a keyboard shortcut. It can contain
-multiple modifiers and key codes, combined by the `+` character.
+> Define keyboard shortcuts.
+
+Accelerators can contain multiple modifiers and key codes, combined by
+the `+` character.
 
 Examples:
 
@@ -39,6 +41,7 @@ The `Super` key is mapped to the `Windows` key on Windows and Linux and
 * Punctuations like `~`, `!`, `@`, `#`, `$`, etc.
 * `Plus`
 * `Space`
+* `Tab`
 * `Backspace`
 * `Delete`
 * `Insert`

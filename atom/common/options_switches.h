@@ -56,6 +56,7 @@ extern const char kGuestInstanceID[];
 extern const char kExperimentalFeatures[];
 extern const char kExperimentalCanvasFeatures[];
 extern const char kOpenerID[];
+extern const char kScrollBounce[];
 extern const char kBlinkFeatures[];
 
 }   // namespace options
@@ -68,9 +69,7 @@ namespace switches {
 extern const char kEnablePlugins[];
 extern const char kPpapiFlashPath[];
 extern const char kPpapiFlashVersion[];
-extern const char kClientCertificate[];
 extern const char kDisableHttpCache[];
-extern const char kRegisterStandardSchemes[];
 extern const char kRegisterServiceWorkerSchemes[];
 extern const char kSSLVersionFallbackMin[];
 extern const char kCipherSuiteBlacklist[];
@@ -83,6 +82,7 @@ extern const char kPreloadURL[];
 extern const char kNodeIntegration[];
 extern const char kGuestInstanceID[];
 extern const char kOpenerID[];
+extern const char kScrollBounce[];
 
 extern const char kWidevineCdmPath[];
 extern const char kWidevineCdmVersion[];

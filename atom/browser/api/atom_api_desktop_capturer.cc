@@ -38,7 +38,8 @@ namespace atom {
 
 namespace api {
 
-DesktopCapturer::DesktopCapturer() {
+DesktopCapturer::DesktopCapturer(v8::Isolate* isolate) {
+  Init(isolate);
 }
 
 DesktopCapturer::~DesktopCapturer() {
@@ -60,9 +61,9 @@ void DesktopCapturer::StartHandling(bool capture_window,
   options.set_disable_effects(false);
 #endif
 
-  scoped_ptr<webrtc::ScreenCapturer> screen_capturer(
+  std::unique_ptr<webrtc::ScreenCapturer> screen_capturer(
       capture_screen ? webrtc::ScreenCapturer::Create(options) : nullptr);
-  scoped_ptr<webrtc::WindowCapturer> window_capturer(
+  std::unique_ptr<webrtc::WindowCapturer> window_capturer(
       capture_window ? webrtc::WindowCapturer::Create(options) : nullptr);
   media_list_.reset(new NativeDesktopMediaList(
       std::move(screen_capturer), std::move(window_capturer)));
@@ -88,19 +89,19 @@ void DesktopCapturer::OnSourceThumbnailChanged(int index) {
 
 bool DesktopCapturer::OnRefreshFinished() {
   Emit("finished", media_list_->GetSources());
-  media_list_.reset();
   return false;
-}
-
-mate::ObjectTemplateBuilder DesktopCapturer::GetObjectTemplateBuilder(
-      v8::Isolate* isolate) {
-  return mate::ObjectTemplateBuilder(isolate)
-      .SetMethod("startHandling", &DesktopCapturer::StartHandling);
 }
 
 // static
 mate::Handle<DesktopCapturer> DesktopCapturer::Create(v8::Isolate* isolate) {
-  return mate::CreateHandle(isolate, new DesktopCapturer);
+  return mate::CreateHandle(isolate, new DesktopCapturer(isolate));
+}
+
+// static
+void DesktopCapturer::BuildPrototype(
+    v8::Isolate* isolate, v8::Local<v8::ObjectTemplate> prototype) {
+  mate::ObjectTemplateBuilder(isolate, prototype)
+      .SetMethod("startHandling", &DesktopCapturer::StartHandling);
 }
 
 }  // namespace api

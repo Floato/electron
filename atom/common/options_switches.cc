@@ -103,6 +103,9 @@ const char kExperimentalCanvasFeatures[] = "experimentalCanvasFeatures";
 // Opener window's ID.
 const char kOpenerID[] = "openerId";
 
+// Enable the rubber banding effect.
+const char kScrollBounce[] = "scrollBounce";
+
 // Enable blink features.
 const char kBlinkFeatures[] = "blinkFeatures";
 
@@ -119,14 +122,8 @@ const char kPpapiFlashPath[] = "ppapi-flash-path";
 // Ppapi Flash version.
 const char kPpapiFlashVersion[] = "ppapi-flash-version";
 
-// Path to client certificate.
-const char kClientCertificate[] = "client-certificate";
-
 // Disable HTTP cache.
 const char kDisableHttpCache[] = "disable-http-cache";
-
-// Register schemes to standard.
-const char kRegisterStandardSchemes[] = "register-standard-schemes";
 
 // Register schemes to handle service worker.
 const char kRegisterServiceWorkerSchemes[] = "register-service-worker-schemes";
@@ -149,6 +146,7 @@ const char kPreloadURL[]      = "preload-url";
 const char kNodeIntegration[] = "node-integration";
 const char kGuestInstanceID[] = "guest-instance-id";
 const char kOpenerID[]        = "opener-id";
+const char kScrollBounce[]    = "scroll-bounce";
 
 // Widevine options
 // Path to Widevine CDM binaries.

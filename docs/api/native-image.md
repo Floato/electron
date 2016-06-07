@@ -1,5 +1,7 @@
 # nativeImage
 
+> Create tray, dock, and application icons using PNG or JPG files.
+
 In Electron, for the APIs that take images, you can pass either file paths or
 `nativeImage` instances. An empty image will be used when `null` is passed.
 
@@ -7,15 +9,15 @@ For example, when creating a tray or setting a window's icon, you can pass an
 image file path as a `String`:
 
 ```javascript
-var appIcon = new Tray('/Users/somebody/images/icon.png');
-var window = new BrowserWindow({icon: '/Users/somebody/images/window.png'});
+const appIcon = new Tray('/Users/somebody/images/icon.png');
+let win = new BrowserWindow({icon: '/Users/somebody/images/window.png'});
 ```
 
 Or read the image from the clipboard which returns a `nativeImage`:
 
 ```javascript
-var image = clipboard.readImage();
-var appIcon = new Tray(image);
+const image = clipboard.readImage();
+const appIcon = new Tray(image);
 ```
 
 ## Supported Formats
@@ -23,7 +25,13 @@ var appIcon = new Tray(image);
 Currently `PNG` and `JPEG` image formats are supported. `PNG` is recommended
 because of its support for transparency and lossless compression.
 
-On Windows, you can also load an `ICO` icon from a file path.
+On Windows, you can also load `ICO` icons from file paths, to get best visual
+effects it is recommended to include at least followings sizes in the icon:
+
+* 16x16
+* 32x32
+* 64x64
+* 256x256
 
 ## High Resolution Image
 
@@ -47,7 +55,7 @@ images/
 
 
 ```javascript
-var appIcon = new Tray('/Users/somebody/images/icon.png');
+let appIcon = new Tray('/Users/somebody/images/icon.png');
 ```
 
 Following suffixes for DPI are also supported:
@@ -116,7 +124,7 @@ The following methods are available on instances of `nativeImage`:
 ```javascript
 const nativeImage = require('electron').nativeImage;
 
-var image = nativeImage.createFromPath('/Users/somebody/images/icon.png');
+let image = nativeImage.createFromPath('/Users/somebody/images/icon.png');
 ```
 
 ### `image.toPng()`

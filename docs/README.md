@@ -17,8 +17,11 @@ an issue:
 ## Guides
 
 * [Supported Platforms](tutorial/supported-platforms.md)
+* [Security](tutorial/security.md)
+* [Electron Versioning](tutorial/electron-versioning.md)
 * [Application Distribution](tutorial/application-distribution.md)
 * [Mac App Store Submission Guide](tutorial/mac-app-store-submission-guide.md)
+* [Windows Store Guide](tutorial/windows-store-guide.md)
 * [Application Packaging](tutorial/application-packaging.md)
 * [Using Native Node Modules](tutorial/using-native-node-modules.md)
 * [Debugging Main Process](tutorial/debugging-main-process.md)
@@ -62,6 +65,7 @@ an issue:
 * [powerSaveBlocker](api/power-save-blocker.md)
 * [protocol](api/protocol.md)
 * [session](api/session.md)
+* [systemPreferences](api/system-preferences.md)
 * [webContents](api/web-contents.md)
 * [Tray](api/tray.md)
 
@@ -89,4 +93,5 @@ an issue:
 * [Build Instructions (OS X)](development/build-instructions-osx.md)
 * [Build Instructions (Windows)](development/build-instructions-windows.md)
 * [Build Instructions (Linux)](development/build-instructions-linux.md)
+* [Debug Instructions (Windows)](development/debug-instructions-windows.md)
 * [Setting Up Symbol Server in debugger](development/setting-up-symbol-server.md)

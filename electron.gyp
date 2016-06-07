@@ -4,7 +4,7 @@
     'product_name%': 'Electron',
     'company_name%': 'GitHub, Inc',
     'company_abbr%': 'github',
-    'version%': '0.37.6',
+    'version%': '1.2.1',
   },
   'includes': [
     'filenames.gypi',
@@ -157,9 +157,6 @@
                 '<(libchromiumcontent_dir)/snapshot_blob.bin',
                 'external_binaries/d3dcompiler_47.dll',
                 'external_binaries/xinput1_3.dll',
-                'external_binaries/msvcp120.dll',
-                'external_binaries/msvcr120.dll',
-                'external_binaries/vccorlib120.dll',
               ],
             },
           ],
@@ -298,6 +295,10 @@
               '$(SDKROOT)/System/Library/Frameworks/QTKit.framework',
             ],
           },
+          'xcode_settings': {
+            # ReactiveCocoa which is used by Squirrel requires using __weak.
+            'CLANG_ENABLE_OBJC_WEAK': 'YES',
+          },
         }],  # OS=="mac" and mas_build==0
         ['OS=="mac" and mas_build==1', {
           'defines': [
@@ -310,6 +311,9 @@
           ],
         }],  # OS=="mac" and mas_build==1
         ['OS=="linux"', {
+          'sources': [
+            '<@(lib_sources_nss)',
+          ],
           'link_settings': {
             'ldflags': [
               # Make binary search for libraries under current directory, so we

@@ -30,7 +30,7 @@ class AtomURLRequestJobFactory;
 
 namespace api {
 
-class Protocol : public mate::Wrappable {
+class Protocol : public mate::Wrappable<Protocol> {
  public:
   using Handler =
       base::Callback<void(const net::URLRequest*, v8::Local<v8::Value>)>;
@@ -40,12 +40,11 @@ class Protocol : public mate::Wrappable {
   static mate::Handle<Protocol> Create(
       v8::Isolate* isolate, AtomBrowserContext* browser_context);
 
- protected:
-  explicit Protocol(AtomBrowserContext* browser_context);
+  static void BuildPrototype(v8::Isolate* isolate,
+                             v8::Local<v8::ObjectTemplate> prototype);
 
-  // mate::Wrappable implementations:
-  virtual mate::ObjectTemplateBuilder GetObjectTemplateBuilder(
-      v8::Isolate* isolate);
+ protected:
+  Protocol(v8::Isolate* isolate, AtomBrowserContext* browser_context);
 
  private:
   // Possible errors.
@@ -89,9 +88,6 @@ class Protocol : public mate::Wrappable {
     DISALLOW_COPY_AND_ASSIGN(CustomProtocolHandler);
   };
 
-  // Register schemes to standard scheme list.
-  void RegisterStandardSchemes(const std::vector<std::string>& schemes);
-
   // Register schemes that can handle service worker.
   void RegisterServiceWorkerSchemes(const std::vector<std::string>& schemes);
 
@@ -114,7 +110,7 @@ class Protocol : public mate::Wrappable {
                                      const Handler& handler) {
     if (job_factory_->IsHandledProtocol(scheme))
       return PROTOCOL_REGISTERED;
-    scoped_ptr<CustomProtocolHandler<RequestJob>> protocol_handler(
+    std::unique_ptr<CustomProtocolHandler<RequestJob>> protocol_handler(
         new CustomProtocolHandler<RequestJob>(
             isolate(), request_context_getter_, handler));
     if (job_factory_->SetProtocolHandler(scheme, std::move(protocol_handler)))
@@ -156,7 +152,7 @@ class Protocol : public mate::Wrappable {
       return PROTOCOL_FAIL;
     if (ContainsKey(original_protocols_, scheme))
       return PROTOCOL_INTERCEPTED;
-    scoped_ptr<CustomProtocolHandler<RequestJob>> protocol_handler(
+    std::unique_ptr<CustomProtocolHandler<RequestJob>> protocol_handler(
         new CustomProtocolHandler<RequestJob>(
             isolate(), request_context_getter_, handler));
     original_protocols_.set(
@@ -180,7 +176,7 @@ class Protocol : public mate::Wrappable {
   // Map that stores the original protocols of schemes.
   using OriginalProtocolsMap = base::ScopedPtrHashMap<
       std::string,
-      scoped_ptr<net::URLRequestJobFactory::ProtocolHandler>>;
+      std::unique_ptr<net::URLRequestJobFactory::ProtocolHandler>>;
   OriginalProtocolsMap original_protocols_;
 
   AtomURLRequestJobFactory* job_factory_;  // weak ref

@@ -4,6 +4,7 @@ const assert = require('assert')
 const fs = require('fs')
 const path = require('path')
 const os = require('os')
+const http = require('http')
 
 const remote = require('electron').remote
 const screen = require('electron').screen
@@ -18,6 +19,23 @@ const isCI = remote.getGlobal('isCi')
 describe('browser-window module', function () {
   var fixtures = path.resolve(__dirname, 'fixtures')
   var w = null
+  var server
+
+  before(function (done) {
+    server = http.createServer(function (req, res) {
+      function respond() { res.end(''); }
+      setTimeout(respond, req.url.includes('slow') ? 200 : 0)
+    });
+    server.listen(0, '127.0.0.1', function () {
+      server.url = 'http://127.0.0.1:' + server.address().port
+      done()
+    })
+  })
+
+  after(function () {
+    server.close()
+    server = null
+  })
 
   beforeEach(function () {
     if (w != null) {
@@ -130,6 +148,7 @@ describe('browser-window module', function () {
     it('should emit did-fail-load event for files that do not exist', function (done) {
       w.webContents.on('did-fail-load', function (event, code, desc, url, isMainFrame) {
         assert.equal(code, -6)
+        assert.equal(desc, 'ERR_FILE_NOT_FOUND')
         assert.equal(isMainFrame, true)
         done()
       })
@@ -155,11 +174,12 @@ describe('browser-window module', function () {
     })
 
     it('does not crash in did-fail-provisional-load handler', function (done) {
+      this.timeout(10000)
       w.webContents.once('did-fail-provisional-load', function () {
-        w.loadURL('http://localhost:11111')
+        w.loadURL('http://127.0.0.1:11111')
         done()
       })
-      w.loadURL('http://localhost:11111')
+      w.loadURL('http://127.0.0.1:11111')
     })
   })
 
@@ -254,6 +274,21 @@ describe('browser-window module', function () {
   describe('BrowserWindow.setSize(width, height)', function () {
     it('sets the window size', function (done) {
       var size = [300, 400]
+      w.once('resize', function () {
+        var newSize = w.getSize()
+        assert.equal(newSize[0], size[0])
+        assert.equal(newSize[1], size[1])
+        done()
+      })
+      w.setSize(size[0], size[1])
+    })
+  })
+
+  describe('BrowserWindow.setAspectRatio(ratio)', function () {
+    it('resets the behaviour when passing in 0', function (done) {
+      var size = [300, 400]
+      w.setAspectRatio(1/2)
+      w.setAspectRatio(0)
       w.once('resize', function () {
         var newSize = w.getSize()
         assert.equal(newSize[0], size[0])
@@ -456,18 +491,11 @@ describe('browser-window module', function () {
   })
 
   describe('beforeunload handler', function () {
-    it('returning true would not prevent close', function (done) {
+    it('returning undefined would not prevent close', function (done) {
       w.on('closed', function () {
         done()
       })
-      w.loadURL('file://' + path.join(fixtures, 'api', 'close-beforeunload-true.html'))
-    })
-
-    it('returning non-empty string would not prevent close', function (done) {
-      w.on('closed', function () {
-        done()
-      })
-      w.loadURL('file://' + path.join(fixtures, 'api', 'close-beforeunload-string.html'))
+      w.loadURL('file://' + path.join(fixtures, 'api', 'close-beforeunload-undefined.html'))
     })
 
     it('returning false would prevent close', function (done) {
@@ -634,6 +662,44 @@ describe('browser-window module', function () {
         assert.equal(w.isResizable(), true)
       })
     })
+
+    describe('loading main frame state', function () {
+      it('is true when the main frame is loading', function (done) {
+        w.webContents.on('did-start-loading', function() {
+          assert.equal(w.webContents.isLoadingMainFrame(), true)
+          done()
+        })
+        w.webContents.loadURL(server.url)
+      })
+
+      it('is false when only a subframe is loading', function (done) {
+        w.webContents.once('did-finish-load', function() {
+          assert.equal(w.webContents.isLoadingMainFrame(), false)
+          w.webContents.on('did-start-loading', function() {
+            assert.equal(w.webContents.isLoadingMainFrame(), false)
+            done()
+          })
+          w.webContents.executeJavaScript(`
+            var iframe = document.createElement('iframe')
+            iframe.src = '${server.url}/page2'
+            document.body.appendChild(iframe)
+          `)
+        })
+        w.webContents.loadURL(server.url)
+      })
+
+      it('is true when navigating to pages from the same origin', function (done) {
+        w.webContents.once('did-finish-load', function() {
+          assert.equal(w.webContents.isLoadingMainFrame(), false)
+          w.webContents.on('did-start-loading', function() {
+            assert.equal(w.webContents.isLoadingMainFrame(), true)
+            done()
+          })
+          w.webContents.loadURL(`${server.url}/page2`)
+        })
+        w.webContents.loadURL(server.url)
+      })
+    })
   })
 
   describe('window states (excluding Linux)', function () {
@@ -767,6 +833,54 @@ describe('browser-window module', function () {
   })
 
   describe('dev tool extensions', function () {
+    describe('BrowserWindow.addDevToolsExtension', function () {
+      this.timeout(10000)
+
+      beforeEach(function () {
+        BrowserWindow.removeDevToolsExtension('foo')
+
+        var extensionPath = path.join(__dirname, 'fixtures', 'devtools-extensions', 'foo')
+        BrowserWindow.addDevToolsExtension(extensionPath)
+
+        w.webContents.on('devtools-opened', function () {
+          var showPanelIntevalId = setInterval(function () {
+            if (w && w.devToolsWebContents) {
+              w.devToolsWebContents.executeJavaScript('(' + (function () {
+                var lastPanelId = WebInspector.inspectorView._tabbedPane._tabs.peekLast().id
+                WebInspector.inspectorView.showPanel(lastPanelId)
+              }).toString() + ')()')
+            } else {
+              clearInterval(showPanelIntevalId)
+            }
+          }, 100)
+        })
+
+        w.loadURL('about:blank')
+      })
+
+      describe('when the devtools is docked', function () {
+        it('creates the extension', function (done) {
+          w.webContents.openDevTools({mode: 'bottom'})
+
+          ipcMain.once('answer', function (event, message) {
+            assert.equal(message.runtimeId, 'foo')
+            done()
+          })
+        })
+      })
+
+      describe('when the devtools is undocked', function () {
+        it('creates the extension', function (done) {
+          w.webContents.openDevTools({mode: 'undocked'})
+
+          ipcMain.once('answer', function (event, message, extensionId) {
+            assert.equal(message.runtimeId, 'foo')
+            done()
+          })
+        })
+      })
+    })
+
     it('serializes the registered extensions on quit', function () {
       var extensionName = 'foo'
       var extensionPath = path.join(__dirname, 'fixtures', 'devtools-extensions', extensionName)
@@ -798,25 +912,29 @@ describe('browser-window module', function () {
         done()
       })
     })
-  })
 
-  describe('deprecated options', function () {
-    it('throws a deprecation error for option keys using hyphens instead of camel case', function () {
-      assert.throws(function () {
-        return new BrowserWindow({'min-width': 500})
-      }, 'min-width is deprecated. Use minWidth instead.')
+    it('works after page load and during subframe load', function (done) {
+      w.webContents.once('did-finish-load', function() {
+        // initiate a sub-frame load, then try and execute script during it
+        w.webContents.executeJavaScript(`
+          var iframe = document.createElement('iframe')
+          iframe.src = '${server.url}/slow'
+          document.body.appendChild(iframe)
+        `, function() {
+          w.webContents.executeJavaScript(`console.log('hello')`, function() {
+            done()
+          })
+        })
+      })
+      w.loadURL(server.url)
     })
 
-    it('throws a deprecation error for webPreference keys using hyphens instead of camel case', function () {
-      assert.throws(function () {
-        return new BrowserWindow({webPreferences: {'node-integration': false}})
-      }, 'node-integration is deprecated. Use nodeIntegration instead.')
-    })
-
-    it('throws a deprecation error for option keys that should be set on webPreferences', function () {
-      assert.throws(function () {
-        return new BrowserWindow({zoomFactor: 1})
-      }, 'options.zoomFactor is deprecated. Use options.webPreferences.zoomFactor instead.')
+    it('executes after page load', function (done) {
+      w.webContents.executeJavaScript(code, function(result) {
+        assert.equal(result, expected)
+        done()
+      })
+      w.loadURL(server.url)
     })
   })
 })

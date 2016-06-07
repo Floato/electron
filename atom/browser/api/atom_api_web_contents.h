@@ -55,6 +55,9 @@ class WebContents : public mate::TrackableObject<WebContents>,
   static mate::Handle<WebContents> Create(
       v8::Isolate* isolate, const mate::Dictionary& options);
 
+  static void BuildPrototype(v8::Isolate* isolate,
+                             v8::Local<v8::ObjectTemplate> prototype);
+
   int GetID() const;
   bool Equal(const WebContents* web_contents) const;
   void LoadURL(const GURL& url, const mate::Dictionary& options);
@@ -62,6 +65,7 @@ class WebContents : public mate::TrackableObject<WebContents>,
   GURL GetURL() const;
   base::string16 GetTitle() const;
   bool IsLoading() const;
+  bool IsLoadingMainFrame() const;
   bool IsWaitingForResponse() const;
   void Stop();
   void ReloadIgnoringCache();
@@ -118,7 +122,8 @@ class WebContents : public mate::TrackableObject<WebContents>,
   void TabTraverse(bool reverse);
 
   // Send messages to browser.
-  bool SendIPCMessage(const base::string16& channel,
+  bool SendIPCMessage(bool all_frames,
+                      const base::string16& channel,
                       const base::ListValue& args);
 
   // Send WebInputEvent to the page.
@@ -150,17 +155,14 @@ class WebContents : public mate::TrackableObject<WebContents>,
   v8::Local<v8::Value> GetOwnerBrowserWindow();
 
   // Properties.
+  int32_t ID() const;
   v8::Local<v8::Value> Session(v8::Isolate* isolate);
   content::WebContents* HostWebContents();
   v8::Local<v8::Value> DevToolsWebContents(v8::Isolate* isolate);
   v8::Local<v8::Value> Debugger(v8::Isolate* isolate);
 
-  // mate::TrackableObject:
-  static void BuildPrototype(v8::Isolate* isolate,
-                             v8::Local<v8::ObjectTemplate> prototype);
-
  protected:
-  explicit WebContents(content::WebContents* web_contents);
+  WebContents(v8::Isolate* isolate, content::WebContents* web_contents);
   WebContents(v8::Isolate* isolate, const mate::Dictionary& options);
   ~WebContents();
 
@@ -180,6 +182,7 @@ class WebContents : public mate::TrackableObject<WebContents>,
                     const gfx::Rect& pos) override;
   void CloseContents(content::WebContents* source) override;
   void ActivateContents(content::WebContents* contents) override;
+  void UpdateTargetURL(content::WebContents* source, const GURL& url) override;
   bool IsPopupOrPanel(const content::WebContents* source) const override;
   void HandleKeyboardEvent(
       content::WebContents* source,
@@ -209,6 +212,9 @@ class WebContents : public mate::TrackableObject<WebContents>,
       content::WebContents* web_contents,
       bool user_gesture,
       bool last_unlocked_by_target) override;
+  std::unique_ptr<content::BluetoothChooser> RunBluetoothChooser(
+      content::RenderFrameHost* frame,
+      const content::BluetoothChooser::EventHandler& handler) override;
 
   // content::WebContentsObserver:
   void BeforeUnloadFired(const base::TimeTicks& proceed_time) override;
@@ -288,7 +294,7 @@ class WebContents : public mate::TrackableObject<WebContents>,
   v8::Global<v8::Value> devtools_web_contents_;
   v8::Global<v8::Value> debugger_;
 
-  scoped_ptr<WebViewGuestDelegate> guest_delegate_;
+  std::unique_ptr<WebViewGuestDelegate> guest_delegate_;
 
   // The host webcontents that may contain this webcontents.
   WebContents* embedder_;

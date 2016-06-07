@@ -1,17 +1,16 @@
 # BrowserWindow
 
-The `BrowserWindow` class gives you the ability to create a browser window. For
-example:
+> Create and control browser windows.
 
 ```javascript
 // In the main process.
-const BrowserWindow = require('electron').BrowserWindow;
+const {BrowserWindow} = require('electron');
 
 // Or in the renderer process.
-const BrowserWindow = require('electron').remote.BrowserWindow;
+const {BrowserWindow} = require('electron').remote;
 
-var win = new BrowserWindow({ width: 800, height: 600, show: false });
-win.on('closed', function() {
+let win = new BrowserWindow({width: 800, height: 600, show: false});
+win.on('closed', () => {
   win = null;
 });
 
@@ -34,10 +33,10 @@ It creates a new `BrowserWindow` with native properties as set by the `options`.
 * `options` Object
   * `width` Integer - Window's width in pixels. Default is `800`.
   * `height` Integer - Window's height in pixels. Default is `600`.
-  * `x` Integer - Window's left offset from screen. Default is to center the
-    window.
-  * `y` Integer - Window's top offset from screen. Default is to center the
-    window.
+  * `x` Integer (**required** if y is used) - Window's left offset from screen.
+    Default is to center the window.
+  * `y` Integer (**required** if x is used) - Window's top offset from screen.
+    Default is to center the window.
   * `useContentSize` Boolean - The `width` and `height` would be used as web
     page's size, which means the actual window's size will include window
     frame's size and be slightly larger. Default is `false`.
@@ -58,16 +57,18 @@ It creates a new `BrowserWindow` with native properties as set by the `options`.
   * `alwaysOnTop` Boolean - Whether the window should always stay on top of
     other windows. Default is `false`.
   * `fullscreen` Boolean - Whether the window should show in fullscreen. When
-    explicity set to `false` the fullscreen button will be hidden or disabled
+    explicitly set to `false` the fullscreen button will be hidden or disabled
     on OS X. Default is `false`.
-  * `fullscreenable` Boolean - Whether the maximize/zoom button on OS X should
-    toggle full screen mode or maximize window. Default is `true`.
+  * `fullscreenable` Boolean - Whether the window can be put into fullscreen
+    mode. On OS X, also whether the maximize/zoom button should toggle full
+    screen mode or maximize window. Default is `true`.
   * `skipTaskbar` Boolean - Whether to show the window in taskbar. Default is
     `false`.
   * `kiosk` Boolean - The kiosk mode. Default is `false`.
   * `title` String - Default window title. Default is `"Electron"`.
-  * `icon` [NativeImage](native-image.md) - The window icon, when omitted on
-    Windows the executable's icon would be used as window icon.
+  * `icon` [NativeImage](native-image.md) - The window icon. On Windows it is
+    recommended to use `ICO` icons to get best visual effects, you can also
+    leave it undefined so the executable's icon will be used.
   * `show` Boolean - Whether window should be shown when created. Default is
     `true`.
   * `frame` Boolean - Specify `false` to create a
@@ -96,6 +97,11 @@ It creates a new `BrowserWindow` with native properties as set by the `options`.
     below.
   * `webPreferences` Object - Settings of web page's features. See more about
     this below.
+
+When setting minimum or maximum window size with `minWidth`/`maxWidth`/
+`minHeight`/`maxHeight`, it only constrains the users, it won't prevent you from
+passing a size that does not follow size constraints to `setBounds`/`setSize` or
+to the constructor of `BrowserWindow`.
 
 The possible values and behaviors of `type` option are platform dependent,
 supported values are:
@@ -166,6 +172,8 @@ The `webPreferences` option is an object that can have following properties:
   canvas features. Default is `false`.
 * `directWrite` Boolean - Enables DirectWrite font rendering system on
   Windows. Default is `true`.
+* `scrollBounce` Boolean - Enables scroll bounce (rubber banding) effect on
+  OS X. Default is `false`.
 * `blinkFeatures` String - A list of feature strings separated by `,`, like
   `CSSVariables,KeyboardEventKey`. The full list of supported feature strings
   can be found in the [setFeatureEnabledFromString][blink-feature-string]
@@ -210,17 +218,17 @@ will cancel the close.
 
 Usually you would want to use the `beforeunload` handler to decide whether the
 window should be closed, which will also be called when the window is
-reloaded. In Electron, returning an empty string or `false` would cancel the
+reloaded. In Electron, returning any value other than `undefined` would cancel the
 close. For example:
 
 ```javascript
-window.onbeforeunload = function(e) {
+window.onbeforeunload = (e) => {
   console.log('I do not want to be closed');
 
-  // Unlike usual browsers, in which a string should be returned and the user is
-  // prompted to confirm the page unload, Electron gives developers more options.
-  // Returning empty string or false would prevent the unloading now.
-  // You can also use the dialog API to let the user confirm closing the application.
+  // Unlike usual browsers that a message box will be prompted to users, returning
+  // a non-void value will silently cancel the close.
+  // It is recommended to use the dialog API to let the user confirm closing the
+  // application.
   e.returnValue = false;
 };
 ```
@@ -311,11 +319,12 @@ Emitted when an [App Command](https://msdn.microsoft.com/en-us/library/windows/d
 is invoked. These are typically related to keyboard media keys or browser
 commands, as well as the "Back" button built into some mice on Windows.
 
-Commands are lowercased with underscores replaced with hyphens and the `APPCOMMAND_` prefix stripped off.
+Commands are lowercased with underscores replaced with hyphens and the
+`APPCOMMAND_` prefix stripped off.
 e.g. `APPCOMMAND_BROWSER_BACKWARD` is emitted as `browser-backward`.
 
-```js
-someWindow.on('app-command', function(e, cmd) {
+```javascript
+someWindow.on('app-command', (e, cmd) => {
   // Navigate the window back when the user hits their mouse back button
   if (cmd === 'browser-backward' && someWindow.webContents.canGoBack()) {
     someWindow.webContents.goBack();
@@ -371,7 +380,11 @@ Find a window according to its ID.
 Adds DevTools extension located at `path`, and returns extension's name.
 
 The extension will be remembered so you only need to call this API once, this
-API is not for programming use.
+API is not for programming use. If you try to add an extension that has already
+been loaded, this method will not return and instead log a warning to the
+console.
+
+Method will also not return if the extension's manifest is missing or incomplete.
 
 ### `BrowserWindow.removeDevToolsExtension(name)`
 
@@ -385,7 +398,7 @@ Objects created with `new BrowserWindow` have the following properties:
 
 ```javascript
 // In this example `win` is our instance
-var win = new BrowserWindow({ width: 800, height: 600 });
+let win = new BrowserWindow({width: 800, height: 600});
 ```
 
 ### `win.webContents`
@@ -675,6 +688,17 @@ Returns the title of the native window.
 **Note:** The title of web page can be different from the title of the native
 window.
 
+### `win.setSheetOffset(offsetY[, offsetX])` _OS X_
+
+Changes the attachment point for sheets on Mac OS X. By default, sheets are
+attached just below the window frame, but you may want to display them beneath
+a HTML-rendered toolbar. For example:
+
+```javascript
+let toolbarRect = document.getElementById('toolbar').getBoundingClientRect();
+win.setSheetOffset(toolbarRect.height);
+```
+
 ### `win.flashFrame(flag)`
 
 * `flag` Boolean
@@ -768,14 +792,6 @@ be called with `callback(image)`. The `image` is an instance of
 [NativeImage](native-image.md) that stores data of the snapshot. Omitting
 `rect` will capture the whole visible page.
 
-### `win.print([options])`
-
-Same as `webContents.print([options])`
-
-### `win.printToPDF(options, callback)`
-
-Same as `webContents.printToPDF(options, callback)`
-
 ### `win.loadURL(url[, options])`
 
 Same as `webContents.loadURL(url[, options])`.
@@ -812,8 +828,8 @@ cleared
 * `description` String - a description that will be provided to Accessibility
 screen readers
 
-Sets a 16 x 16 pixel overlay onto the current taskbar icon, usually used to convey some
-sort of application status or to passively notify the user.
+Sets a 16 x 16 pixel overlay onto the current taskbar icon, usually used to
+convey some sort of application status or to passively notify the user.
 
 ### `win.setHasShadow(hasShadow)` _OS X_
 
@@ -867,6 +883,12 @@ The `flags` is an array that can include following `String`s:
 
 Shows pop-up dictionary that searches the selected word on the page.
 
+### `win.setIcon(icon)` _Windows_ _Linux_
+
+* `icon` [NativeImage](native-image.md)
+
+Changes window icon.
+
 ### `win.setAutoHideMenuBar(hide)`
 
 * `hide` Boolean
@@ -906,10 +928,14 @@ Returns whether the window is visible on all workspaces.
 
 **Note:** This API always returns false on Windows.
 
-### `win.setIgnoreMouseEvents(ignore)` _OS X_
+### `win.setIgnoreMouseEvents(ignore)`
 
 * `ignore` Boolean
 
-Ignore all moused events that happened in the window.
+Makes the window ignore all mouse events.
+
+All mouse events happened in this window will be passed to the window bellow
+this window, but if this window has focus, it will still receive keyboard
+events.
 
 [blink-feature-string]: https://code.google.com/p/chromium/codesearch#chromium/src/out/Debug/gen/blink/platform/RuntimeEnabledFeatures.cpp&sq=package:chromium&type=cs&l=576

@@ -1,6 +1,11 @@
 # Frameless Window
 
-A frameless window is a window that has no [chrome](https://developer.mozilla.org/en-US/docs/Glossary/Chrome), the parts of the window, like toolbars, that are not a part of the web page. These are options on the [`BrowserWindow`](browser-window.md) class.
+> Open a window without toolbars, borders, or other graphical "chrome".
+
+A frameless window is a window that has no
+[chrome](https://developer.mozilla.org/en-US/docs/Glossary/Chrome), the parts of
+the window, like toolbars, that are not a part of the web page. These are
+options on the [`BrowserWindow`](browser-window.md) class.
 
 ## Create a frameless window
 
@@ -9,8 +14,8 @@ To create a frameless window, you need to set `frame` to `false` in
 
 
 ```javascript
-const BrowserWindow = require('electron').BrowserWindow;
-var win = new BrowserWindow({ width: 800, height: 600, frame: false });
+const {BrowserWindow} = require('electron')
+let win = new BrowserWindow({width: 800, height: 600, frame: false})
 ```
 
 ### Alternatives on OS X
@@ -23,7 +28,7 @@ the window controls ("traffic lights") for standard window actions.
 You can do so by specifying the new `titleBarStyle` option:
 
 ```javascript
-var win = new BrowserWindow({ 'titleBarStyle': 'hidden' });
+let win = new BrowserWindow({titleBarStyle: 'hidden'})
 ```
 
 ## Transparent window
@@ -32,13 +37,14 @@ By setting the `transparent` option to `true`, you can also make the frameless
 window transparent:
 
 ```javascript
-var win = new BrowserWindow({ transparent: true, frame: false });
+let win = new BrowserWindow({transparent: true, frame: false})
 ```
 
 ### Limitations
 
 * You can not click through the transparent area. We are going to introduce an
-  API to set window shape to solve this, see [our issue](https://github.com/electron/electron/issues/1335) for details.
+  API to set window shape to solve this, see
+  [our issue](https://github.com/electron/electron/issues/1335) for details.
 * Transparent windows are not resizable. Setting `resizable` to `true` may make
   a transparent window stop working on some platforms.
 * The `blur` filter only applies to the web page, so there is no way to apply
@@ -52,6 +58,16 @@ var win = new BrowserWindow({ transparent: true, frame: false });
   NVidia drivers](https://code.google.com/p/chromium/issues/detail?id=369209) on
   Linux.
 * On Mac the native window shadow will not be shown on a transparent window.
+
+## Click-through window
+
+To create a click-through window, i.e. making the window ignore all mouse
+events, you can call the [win.setIgnoreMouseEvents(ignore)][ignore-mouse-events]
+API:
+
+```javascript
+win.setIgnoreMouseEvents(true)
+```
 
 ## Draggable region
 
@@ -102,3 +118,5 @@ On some platforms, the draggable area will be treated as a non-client frame, so
 when you right click on it a system menu will pop up. To make the context menu
 behave correctly on all platforms you should never use a custom context menu on
 draggable areas.
+
+[ignore-mouse-events]: browser-window.md#winsetignoremouseeventsignore

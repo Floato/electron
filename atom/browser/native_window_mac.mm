@@ -6,6 +6,7 @@
 
 #include <string>
 
+#include "atom/browser/window_list.h"
 #include "atom/common/color_util.h"
 #include "atom/common/draggable_region.h"
 #include "atom/common/options_switches.h"
@@ -15,7 +16,6 @@
 #include "brightray/browser/inspectable_web_contents.h"
 #include "brightray/browser/inspectable_web_contents_view.h"
 #include "content/public/browser/browser_accessibility_state.h"
-#include "content/public/browser/native_web_keyboard_event.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/browser/render_view_host.h"
 #include "content/public/browser/render_widget_host_view.h"
@@ -142,22 +142,9 @@ bool ScopedDisableResize::disable_resize_ = false;
     newSize.width =
         roundf((frameSize.height - extraHeightPlusFrame) * aspectRatio +
                extraWidthPlusFrame);
-
-    // If the new width is less than the frame size use it as the primary
-    // constraint. This ensures that the value returned by this method will
-    // never be larger than the users requested window size.
-    if (newSize.width <= frameSize.width) {
-      newSize.height =
-          roundf((newSize.width - extraWidthPlusFrame) / aspectRatio +
-                 extraHeightPlusFrame);
-    } else {
-      newSize.height =
-          roundf((frameSize.width - extraWidthPlusFrame) / aspectRatio +
-                 extraHeightPlusFrame);
-      newSize.width =
-          roundf((newSize.height - extraHeightPlusFrame) * aspectRatio +
-                 extraWidthPlusFrame);
-    }
+    newSize.height =
+        roundf((newSize.width - extraWidthPlusFrame) / aspectRatio +
+               extraHeightPlusFrame);
   }
 
   return newSize;
@@ -206,18 +193,41 @@ bool ScopedDisableResize::disable_resize_ = false;
 - (void)windowDidEnterFullScreen:(NSNotification*)notification {
   shell_->NotifyWindowEnterFullScreen();
 
+  // For frameless window we don't set title for normal mode since the title
+  // bar is expected to be empty, but after entering fullscreen mode we have
+  // to set one, because title bar is visible here.
+  NSWindow* window = shell_->GetNativeWindow();
+  if (shell_->transparent() || !shell_->has_frame())
+    [window setTitle:base::SysUTF8ToNSString(shell_->GetTitle())];
+
   // Restore the native toolbar immediately after entering fullscreen, if we do
   // this before leaving fullscreen, traffic light buttons will be jumping.
   if (shell_->should_hide_native_toolbar_in_fullscreen()) {
-    NSWindow* window = shell_->GetNativeWindow();
     base::scoped_nsobject<NSToolbar> toolbar(
         [[NSToolbar alloc] initWithIdentifier:@"titlebarStylingToolbar"]);
     [toolbar setShowsBaselineSeparator:NO];
     [window setToolbar:toolbar];
+
+    // Set window style to hide the toolbar, otherwise the toolbar will show in
+    // fullscreen mode.
+    shell_->SetStyleMask(true, NSFullSizeContentViewWindowMask);
   }
 }
 
+- (void)windowWillExitFullScreen:(NSNotification*)notification {
+  // Restore the title bar to empty.
+  NSWindow* window = shell_->GetNativeWindow();
+  if (shell_->transparent() || !shell_->has_frame())
+    [window setTitle:@""];
+
+  // Turn off the style for toolbar.
+  if (shell_->should_hide_native_toolbar_in_fullscreen())
+    shell_->SetStyleMask(false, NSFullSizeContentViewWindowMask);
+}
+
 - (void)windowDidExitFullScreen:(NSNotification*)notification {
+  // For certain versions of OS X the fullscreen button will automatically show
+  // after exiting fullscreen mode.
   if (!shell_->has_frame()) {
     NSWindow* window = shell_->GetNativeWindow();
     [[window standardWindowButton:NSWindowFullScreenButton] setHidden:YES];
@@ -241,6 +251,15 @@ bool ScopedDisableResize::disable_resize_ = false;
   // fisrt, and when the web page is closed the window will also be closed.
   shell_->RequestToClosePage();
   return NO;
+}
+
+- (NSRect)window:(NSWindow*)window
+    willPositionSheet:(NSWindow*)sheet usingRect:(NSRect)rect {
+  NSView* view = window.contentView;
+
+  rect.origin.x = shell_->GetSheetOffsetX();
+  rect.origin.y = view.frame.size.height - shell_->GetSheetOffsetY();
+  return rect;
 }
 
 @end
@@ -384,6 +403,7 @@ NativeWindowMac::NativeWindowMac(
     : NativeWindow(web_contents, options),
       is_kiosk_(false),
       attention_request_id_(0),
+      force_show_buttons_(false),
       should_hide_native_toolbar_in_fullscreen_(false) {
   int width = 800, height = 600;
   options.Get(options::kWidth, &width);
@@ -431,21 +451,16 @@ NativeWindowMac::NativeWindowMac(
   if (closable) {
     styleMask |= NSClosableWindowMask;
   }
+  if ((titleBarStyle == "hidden") || (titleBarStyle == "hidden-inset")) {
+    // The window without titlebar is treated the same with frameless window.
+    set_has_frame(false);
+    force_show_buttons_ = true;
+  }
   if (!useStandardWindow || transparent() || !has_frame()) {
     styleMask |= NSTexturedBackgroundWindowMask;
   }
   if (resizable) {
     styleMask |= NSResizableWindowMask;
-  }
-  if ((titleBarStyle == "hidden") || (titleBarStyle == "hidden-inset")) {
-    styleMask |= NSFullSizeContentViewWindowMask;
-    styleMask |= NSUnifiedTitleAndToolbarWindowMask;
-  }
-  // We capture this because we need to access the option later when
-  // entering/exiting fullscreen and since the options dict is only passed to
-  // the constructor but not stored, let’s store this option this way.
-  if (titleBarStyle == "hidden-inset") {
-    should_hide_native_toolbar_in_fullscreen_ = true;
   }
 
   window_.reset([[AtomNSWindow alloc]
@@ -483,17 +498,14 @@ NativeWindowMac::NativeWindowMac(
   [window_ setReleasedWhenClosed:NO];
 
   // Hide the title bar.
-  if ((titleBarStyle == "hidden") || (titleBarStyle == "hidden-inset")) {
+  if (titleBarStyle == "hidden-inset") {
     [window_ setTitlebarAppearsTransparent:YES];
     [window_ setTitleVisibility:NSWindowTitleHidden];
-    if (titleBarStyle == "hidden-inset") {
-      base::scoped_nsobject<NSToolbar> toolbar(
-          [[NSToolbar alloc] initWithIdentifier:@"titlebarStylingToolbar"]);
-      [toolbar setShowsBaselineSeparator:NO];
-      [window_ setToolbar:toolbar];
-    }
-    // We should be aware of draggable regions when using hidden titlebar.
-    set_force_using_draggable_region(true);
+    base::scoped_nsobject<NSToolbar> toolbar(
+        [[NSToolbar alloc] initWithIdentifier:@"titlebarStylingToolbar"]);
+    [toolbar setShowsBaselineSeparator:NO];
+    [window_ setToolbar:toolbar];
+    should_hide_native_toolbar_in_fullscreen_ = true;
   }
 
   // On OS X the initial window size doesn't include window frame.
@@ -551,6 +563,11 @@ NativeWindowMac::~NativeWindowMac() {
 }
 
 void NativeWindowMac::Close() {
+  if (!IsClosable()) {
+    WindowList::WindowCloseCancelled(this);
+    return;
+  }
+
   [window_ performClose:nil];
 }
 
@@ -595,10 +612,16 @@ bool NativeWindowMac::IsVisible() {
 }
 
 void NativeWindowMac::Maximize() {
+  if (IsMaximized())
+    return;
+
   [window_ zoom:nil];
 }
 
 void NativeWindowMac::Unmaximize() {
+  if (!IsMaximized())
+    return;
+
   [window_ zoom:nil];
 }
 
@@ -700,6 +723,17 @@ bool NativeWindowMac::IsResizable() {
   return [window_ styleMask] & NSResizableWindowMask;
 }
 
+void NativeWindowMac::SetAspectRatio(double aspect_ratio,
+                                     const gfx::Size& extra_size) {
+    NativeWindow::SetAspectRatio(aspect_ratio, extra_size);
+
+    // Reset the behaviour to default if aspect_ratio is set to 0 or less.
+    if (aspect_ratio > 0.0)
+      [window_ setAspectRatio:NSMakeSize(aspect_ratio, 1.0)];
+    else
+      [window_ setResizeIncrements:NSMakeSize(1.0, 1.0)];
+}
+
 void NativeWindowMac::SetMovable(bool movable) {
   [window_ setMovable:movable];
 }
@@ -758,6 +792,8 @@ void NativeWindowMac::Center() {
 }
 
 void NativeWindowMac::SetTitle(const std::string& title) {
+  title_ = title;
+
   // We don't want the title to show in transparent or frameless window.
   if (transparent() || !has_frame())
     return;
@@ -766,7 +802,7 @@ void NativeWindowMac::SetTitle(const std::string& title) {
 }
 
 std::string NativeWindowMac::GetTitle() {
-  return base::SysNSStringToUTF8([window_ title]);
+  return title_;
 }
 
 void NativeWindowMac::FlashFrame(bool flash) {
@@ -915,35 +951,14 @@ bool NativeWindowMac::IsVisibleOnAllWorkspaces() {
   return collectionBehavior & NSWindowCollectionBehaviorCanJoinAllSpaces;
 }
 
-void NativeWindowMac::HandleKeyboardEvent(
-    content::WebContents*,
-    const content::NativeWebKeyboardEvent& event) {
-  if (event.skip_in_browser ||
-      event.type == content::NativeWebKeyboardEvent::Char)
-    return;
-
-  BOOL handled = [[NSApp mainMenu] performKeyEquivalent:event.os_event];
-  if (!handled && event.os_event.window) {
-    // Handle the cmd+~ shortcut.
-    if ((event.os_event.modifierFlags & NSCommandKeyMask) /* cmd */ &&
-        (event.os_event.keyCode == 50  /* ~ */)) {
-      if (event.os_event.modifierFlags & NSShiftKeyMask) {
-        [NSApp sendAction:@selector(_cycleWindowsReversed:) to:nil from:nil];
-      } else {
-        [NSApp sendAction:@selector(_cycleWindows:) to:nil from:nil];
-      }
-    }
-  }
-}
-
 std::vector<gfx::Rect> NativeWindowMac::CalculateNonDraggableRegions(
     const std::vector<DraggableRegion>& regions, int width, int height) {
   std::vector<gfx::Rect> result;
   if (regions.empty()) {
     result.push_back(gfx::Rect(0, 0, width, height));
   } else {
-    scoped_ptr<SkRegion> draggable(DraggableRegionsToSkRegion(regions));
-    scoped_ptr<SkRegion> non_draggable(new SkRegion);
+    std::unique_ptr<SkRegion> draggable(DraggableRegionsToSkRegion(regions));
+    std::unique_ptr<SkRegion> non_draggable(new SkRegion);
     non_draggable->op(0, 0, width, height, SkRegion::kUnion_Op);
     non_draggable->op(*draggable, SkRegion::kDifference_Op);
     for (SkRegion::Iterator it(*non_draggable); !it.done(); it.next()) {
@@ -1000,6 +1015,10 @@ void NativeWindowMac::InstallView() {
     [view setFrame:[content_view_ bounds]];
     [content_view_ addSubview:view];
 
+    if (force_show_buttons_)
+      return;
+
+    // Hide the window buttons.
     [[window_ standardWindowButton:NSWindowZoomButton] setHidden:YES];
     [[window_ standardWindowButton:NSWindowMiniaturizeButton] setHidden:YES];
     [[window_ standardWindowButton:NSWindowCloseButton] setHidden:YES];
@@ -1018,7 +1037,7 @@ void NativeWindowMac::UninstallView() {
 
 void NativeWindowMac::UpdateDraggableRegionViews(
     const std::vector<DraggableRegion>& regions) {
-  if (has_frame() && !force_using_draggable_region())
+  if (has_frame())
     return;
 
   // All ControlRegionViews should be added as children of the WebContentsView,

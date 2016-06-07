@@ -37,7 +37,6 @@
 #include "content/public/browser/site_instance.h"
 #include "content/public/browser/web_contents.h"
 #include "content/public/common/web_preferences.h"
-#include "net/cert/x509_certificate.h"
 #include "net/ssl/ssl_cert_request_info.h"
 #include "ppapi/host/ppapi_host.h"
 #include "ui/base/l10n/l10n_util.h"
@@ -50,29 +49,10 @@ namespace {
 // Next navigation should not restart renderer process.
 bool g_suppress_renderer_process_restart = false;
 
-// Custom schemes to be registered to standard.
-std::string g_custom_schemes = "";
 // Custom schemes to be registered to handle service worker.
 std::string g_custom_service_worker_schemes = "";
 
-scoped_refptr<net::X509Certificate> ImportCertFromFile(
-    const base::FilePath& path) {
-  if (path.empty())
-    return nullptr;
-
-  std::string cert_data;
-  if (!base::ReadFileToString(path, &cert_data))
-    return nullptr;
-
-  net::CertificateList certs =
-      net::X509Certificate::CreateCertificateListFromBytes(
-          cert_data.data(), cert_data.size(),
-          net::X509Certificate::FORMAT_AUTO);
-
-  if (certs.empty())
-    return nullptr;
-
-  return certs[0];
+void Noop(scoped_refptr<content::SiteInstance>) {
 }
 
 }  // namespace
@@ -80,11 +60,6 @@ scoped_refptr<net::X509Certificate> ImportCertFromFile(
 // static
 void AtomBrowserClient::SuppressRendererProcessRestartForOnce() {
   g_suppress_renderer_process_restart = true;
-}
-
-void AtomBrowserClient::SetCustomSchemes(
-    const std::vector<std::string>& schemes) {
-  g_custom_schemes = base::JoinString(schemes, ",");
 }
 
 void AtomBrowserClient::SetCustomServiceWorkerSchemes(
@@ -96,6 +71,17 @@ AtomBrowserClient::AtomBrowserClient() : delegate_(nullptr) {
 }
 
 AtomBrowserClient::~AtomBrowserClient() {
+}
+
+content::WebContents* AtomBrowserClient::GetWebContentsFromProcessID(
+    int process_id) {
+  // If the process is a pending process, we should use the old one.
+  if (ContainsKey(pending_processes_, process_id))
+    process_id = pending_processes_[process_id];
+
+  // Certain render process will be created with no associated render view,
+  // for example: ServiceWorker.
+  return WebContentsPreferences::GetWebContentsFromProcessID(process_id);
 }
 
 void AtomBrowserClient::RenderProcessWillLaunch(
@@ -157,7 +143,16 @@ void AtomBrowserClient::OverrideSiteInstanceForNavigation(
   if (url.SchemeIs(url::kJavaScriptScheme))
     return;
 
-  *new_instance = content::SiteInstance::CreateForURL(browser_context, url);
+  scoped_refptr<content::SiteInstance> site_instance =
+      content::SiteInstance::CreateForURL(browser_context, url);
+  *new_instance = site_instance.get();
+
+  // Make sure the |site_instance| is not freed when this function returns.
+  // FIXME(zcbenz): We should adjust OverrideSiteInstanceForNavigation's
+  // interface to solve this.
+  content::BrowserThread::PostTask(
+      content::BrowserThread::UI, FROM_HERE,
+      base::Bind(&Noop, base::RetainedRef(site_instance)));
 
   // Remember the original renderer process of the pending renderer process.
   auto current_process = current_instance->GetProcess();
@@ -174,11 +169,6 @@ void AtomBrowserClient::AppendExtraCommandLineSwitches(
   if (process_type != "renderer")
     return;
 
-  // The registered standard schemes.
-  if (!g_custom_schemes.empty())
-    command_line->AppendSwitchASCII(switches::kRegisterStandardSchemes,
-                                    g_custom_schemes);
-
   // The registered service worker schemes.
   if (!g_custom_service_worker_schemes.empty())
     command_line->AppendSwitchASCII(switches::kRegisterServiceWorkerSchemes,
@@ -193,14 +183,7 @@ void AtomBrowserClient::AppendExtraCommandLineSwitches(
   }
 #endif
 
-  // If the process is a pending process, we should use the old one.
-  if (ContainsKey(pending_processes_, process_id))
-    process_id = pending_processes_[process_id];
-
-  // Certain render process will be created with no associated render view,
-  // for example: ServiceWorker.
-  content::WebContents* web_contents =
-      WebContentsPreferences::GetWebContentsFromProcessID(process_id);
+  content::WebContents* web_contents = GetWebContentsFromProcessID(process_id);
   if (!web_contents)
     return;
 
@@ -241,17 +224,7 @@ void AtomBrowserClient::AllowCertificateError(
 void AtomBrowserClient::SelectClientCertificate(
     content::WebContents* web_contents,
     net::SSLCertRequestInfo* cert_request_info,
-    scoped_ptr<content::ClientCertificateDelegate> delegate) {
-  // --client-certificate=`path`
-  auto cmd = base::CommandLine::ForCurrentProcess();
-  if (cmd->HasSwitch(switches::kClientCertificate)) {
-    auto cert_path = cmd->GetSwitchValuePath(switches::kClientCertificate);
-    auto certificate = ImportCertFromFile(cert_path);
-    if (certificate.get())
-      delegate->ContinueWithCertificate(certificate.get());
-    return;
-  }
-
+    std::unique_ptr<content::ClientCertificateDelegate> delegate) {
   if (!cert_request_info->client_certs.empty() && delegate_) {
     delegate_->SelectClientCertificate(
         web_contents, cert_request_info, std::move(delegate));

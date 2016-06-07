@@ -58,7 +58,7 @@ class Session: public mate::TrackableObject<Session>,
                              v8::Local<v8::ObjectTemplate> prototype);
 
  protected:
-  explicit Session(AtomBrowserContext* browser_context);
+  Session(v8::Isolate* isolate, AtomBrowserContext* browser_context);
   ~Session();
 
   // content::DownloadManager::Observer:
@@ -79,6 +79,7 @@ class Session: public mate::TrackableObject<Session>,
   void SetPermissionRequestHandler(v8::Local<v8::Value> val,
                                    mate::Arguments* args);
   void ClearHostResolverCache(mate::Arguments* args);
+  void AllowNTLMCredentialsForDomains(const std::string& domains);
   v8::Local<v8::Value> Cookies(v8::Isolate* isolate);
   v8::Local<v8::Value> WebRequest(v8::Isolate* isolate);
 

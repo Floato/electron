@@ -7,6 +7,12 @@
 
 #include <string>
 
+#include "build/build_config.h"
+
+namespace base {
+class DictionaryValue;
+}
+
 namespace atom {
 
 class LoginHandler;
@@ -45,7 +51,13 @@ class BrowserObserver {
   // The browser requests HTTP login.
   virtual void OnLogin(LoginHandler* login_handler) {}
 
-  virtual void OnPlatformThemeChanged() {}
+#if defined(OS_MACOSX)
+  // The browser wants to resume a user activity via handoff. (OS X only)
+  virtual void OnContinueUserActivity(
+      bool* prevent_default,
+      const std::string& type,
+      const base::DictionaryValue& user_info) {}
+#endif
 
  protected:
   virtual ~BrowserObserver() {}
