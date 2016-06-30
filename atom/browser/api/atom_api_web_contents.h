@@ -43,6 +43,13 @@ class WebContents : public mate::TrackableObject<WebContents>,
                     public CommonWebContentsDelegate,
                     public content::WebContentsObserver {
  public:
+  enum Type {
+    BACKGROUND_PAGE,  // A DevTools extension background page.
+    BROWSER_WINDOW,  // Used by BrowserWindow.
+    REMOTE,  // Thin wrap around an existing WebContents.
+    WEB_VIEW,  // Used by <webview>.
+  };
+
   // For node.js callback function type: function(error, buffer)
   using PrintToPDFCallback =
       base::Callback<void(v8::Local<v8::Value>, v8::Local<v8::Value>)>;
@@ -59,6 +66,7 @@ class WebContents : public mate::TrackableObject<WebContents>,
                              v8::Local<v8::ObjectTemplate> prototype);
 
   int GetID() const;
+  Type GetType() const;
   bool Equal(const WebContents* web_contents) const;
   void LoadURL(const GURL& url, const mate::Dictionary& options);
   void DownloadURL(const GURL& url);
@@ -73,7 +81,7 @@ class WebContents : public mate::TrackableObject<WebContents>,
   void GoForward();
   void GoToOffset(int offset);
   bool IsCrashed() const;
-  void SetUserAgent(const std::string& user_agent);
+  void SetUserAgent(const std::string& user_agent, mate::Arguments* args);
   std::string GetUserAgent();
   void InsertCSS(const std::string& css);
   bool SavePage(const base::FilePath& full_file_path,
@@ -116,6 +124,7 @@ class WebContents : public mate::TrackableObject<WebContents>,
   void ReplaceMisspelling(const base::string16& word);
   uint32_t FindInPage(mate::Arguments* args);
   void StopFindInPage(content::StopFindAction action);
+  void ShowDefinitionForSelection();
 
   // Focus.
   void Focus();
@@ -130,8 +139,7 @@ class WebContents : public mate::TrackableObject<WebContents>,
   void SendInputEvent(v8::Isolate* isolate, v8::Local<v8::Value> input_event);
 
   // Subscribe to the frame updates.
-  void BeginFrameSubscription(
-      const FrameSubscriber::FrameCaptureCallback& callback);
+  void BeginFrameSubscription(mate::Arguments* args);
   void EndFrameSubscription();
 
   // Methods for creating <webview>.
@@ -266,12 +274,6 @@ class WebContents : public mate::TrackableObject<WebContents>,
   void DevToolsClosed() override;
 
  private:
-  enum Type {
-    BROWSER_WINDOW,  // Used by BrowserWindow.
-    WEB_VIEW,  // Used by <webview>.
-    REMOTE,  // Thin wrap around an existing WebContents.
-  };
-
   AtomBrowserContext* GetBrowserContext() const;
 
   uint32_t GetNextRequestId() {

@@ -18,6 +18,9 @@ describe('session module', function () {
   var url = 'http://127.0.0.1'
 
   beforeEach(function () {
+    if (w != null) {
+      w.destroy()
+    }
     w = new BrowserWindow({
       show: false,
       width: 400,
@@ -26,7 +29,10 @@ describe('session module', function () {
   })
 
   afterEach(function () {
-    w.destroy()
+    if (w != null) {
+      w.destroy()
+    }
+    w = null
   })
 
   describe('session.cookies', function () {
@@ -60,6 +66,17 @@ describe('session module', function () {
             done('Can not find cookie')
           })
         })
+      })
+    })
+
+    it('calls back with an error when setting a cookie with missing required fields', function (done) {
+      session.defaultSession.cookies.set({
+        url: '',
+        name: '1',
+        value: '1'
+      }, function (error) {
+        assert.equal(error.message, 'Setting cookie failed')
+        done()
       })
     })
 
@@ -260,6 +277,50 @@ describe('session module', function () {
           done()
         })
       })
+    })
+  })
+
+  describe('session.protocol', function () {
+    const partitionName = 'temp'
+    const protocolName = 'sp'
+    const partitionProtocol = session.fromPartition(partitionName).protocol
+    const protocol = session.defaultSession.protocol
+    const handler = function (ignoredError, callback) {
+      callback({data: 'test', mimeType: 'text/html'})
+    }
+
+    beforeEach(function (done) {
+      if (w != null) w.destroy()
+      w = new BrowserWindow({
+        show: false,
+        webPreferences: {
+          partition: partitionName
+        }
+      })
+      partitionProtocol.registerStringProtocol(protocolName, handler, function (error) {
+        done(error != null ? error : undefined)
+      })
+    })
+
+    afterEach(function (done) {
+      partitionProtocol.unregisterProtocol(protocolName, () => done())
+    })
+
+    it('does not affect defaultSession', function (done) {
+      protocol.isProtocolHandled(protocolName, function (result) {
+        assert.equal(result, false)
+        partitionProtocol.isProtocolHandled(protocolName, function (result) {
+          assert.equal(result, true)
+          done()
+        })
+      })
+    })
+
+    it('handles requests from partition', function (done) {
+      w.webContents.on('did-finish-load', function () {
+        done()
+      })
+      w.loadURL(`${protocolName}://fake-host`)
     })
   })
 })

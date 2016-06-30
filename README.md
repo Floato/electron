@@ -19,7 +19,7 @@ behavior to electron@github.com.
 
 ## Downloads
 
-Prebuilt binaries and debug symbols of Electron for Linux, Windows and OS X can
+Prebuilt binaries and debug symbols of Electron for Linux, Windows and macOS can
 be found on the [releases](https://github.com/electron/electron/releases) page.
 
 You can also use [`npm`](https://docs.npmjs.com/) to install prebuilt electron
@@ -72,6 +72,7 @@ forums
 - [`electron-br`](https://electron-br.slack.com) *(Brazilian Portuguese)*
 - [`electron-kr`](http://www.meetup.com/electron-kr/) *(Korean)*
 - [`electron-jp`](https://electron-jp-slackin.herokuapp.com/) *(Japanese)*
+- [`electron-tr`](http://www.meetup.com/Electron-JS-Istanbul/) *(Turkish)*
 
 Check out [awesome-electron](https://github.com/sindresorhus/awesome-electron)
 for a community maintained list of useful example apps, tools and resources.

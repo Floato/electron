@@ -110,6 +110,8 @@ int GetPathConstant(const std::string& name) {
     return chrome::DIR_USER_PICTURES;
   else if (name == "videos")
     return chrome::DIR_USER_VIDEOS;
+  else if (name == "pepperFlashSystemPlugin")
+    return chrome::FILE_PEPPER_FLASH_SYSTEM_PLUGIN;
   else
     return -1;
 }
@@ -261,13 +263,14 @@ void App::OnContinueUserActivity(
 }
 #endif
 
-void App::OnLogin(LoginHandler* login_handler) {
+void App::OnLogin(LoginHandler* login_handler,
+                  const base::DictionaryValue& request_details) {
   v8::Locker locker(isolate());
   v8::HandleScope handle_scope(isolate());
   bool prevent_default = Emit(
       "login",
       WebContents::CreateFrom(isolate(), login_handler->GetWebContents()),
-      login_handler->request(),
+      request_details,
       login_handler->auth_info(),
       base::Bind(&PassLoginInformation, make_scoped_refptr(login_handler)));
 
@@ -460,10 +463,11 @@ void App::DisableHardwareAcceleration(mate::Arguments* args) {
 void App::ImportCertificate(
     const base::DictionaryValue& options,
     const net::CompletionCallback& callback) {
-  auto browser_context = AtomBrowserMainParts::Get()->browser_context();
+  auto browser_context = brightray::BrowserContext::From("", false);
   if (!certificate_manager_model_) {
     std::unique_ptr<base::DictionaryValue> copy = options.CreateDeepCopy();
-    CertificateManagerModel::Create(browser_context,
+    CertificateManagerModel::Create(
+        browser_context.get(),
         base::Bind(&App::OnCertificateManagerModelCreated,
                    base::Unretained(this),
                    base::Passed(&copy),
@@ -609,6 +613,16 @@ void Initialize(v8::Local<v8::Object> exports, v8::Local<v8::Value> unused,
   dict.SetMethod("dockShow", base::Bind(&Browser::DockShow, browser));
   dict.SetMethod("dockSetMenu", &DockSetMenu);
   dict.SetMethod("dockSetIcon", base::Bind(&Browser::DockSetIcon, browser));
+#endif
+
+#if defined(OS_LINUX)
+  auto browser = base::Unretained(Browser::Get());
+  dict.SetMethod("unityLauncherAvailable",
+                  base::Bind(&Browser::UnityLauncherAvailable, browser));
+  dict.SetMethod("unityLauncherSetBadgeCount",
+                  base::Bind(&Browser::UnityLauncherSetBadgeCount, browser));
+  dict.SetMethod("unityLauncherGetBadgeCount",
+                  base::Bind(&Browser::UnityLauncherGetBadgeCount, browser));
 #endif
 }
 

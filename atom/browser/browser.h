@@ -21,6 +21,7 @@
 #endif
 
 namespace base {
+class DictionaryValue;
 class FilePath;
 }
 
@@ -148,7 +149,14 @@ class Browser : public WindowListObserver {
   // one from app's name.
   // The returned string managed by Browser, and should not be modified.
   PCWSTR GetAppUserModelID();
-#endif
+#endif  // defined(OS_WIN)
+
+#if defined(OS_LINUX)
+  // Set/Get unity dock's badge counter.
+  bool UnityLauncherAvailable();
+  void UnityLauncherSetBadgeCount(int count);
+  int UnityLauncherGetBadgeCount();
+#endif  // defined(OS_LINUX)
 
   // Tell the application to open a file.
   bool OpenFile(const std::string& file_path);
@@ -165,7 +173,8 @@ class Browser : public WindowListObserver {
   void DidFinishLaunching();
 
   // Request basic auth login.
-  void RequestLogin(LoginHandler* login_handler);
+  void RequestLogin(LoginHandler* login_handler,
+                    std::unique_ptr<base::DictionaryValue> request_details);
 
   void AddObserver(BrowserObserver* obs) {
     observers_.AddObserver(obs);
@@ -213,6 +222,10 @@ class Browser : public WindowListObserver {
 
   std::string version_override_;
   std::string name_override_;
+
+#if defined(OS_LINUX)
+  int current_badge_count_ = 0;
+#endif
 
 #if defined(OS_WIN)
   base::string16 app_user_model_id_;

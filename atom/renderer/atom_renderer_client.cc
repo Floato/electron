@@ -122,6 +122,16 @@ bool IsDevToolsExtension(content::RenderFrame* render_frame) {
 AtomRendererClient::AtomRendererClient()
     : node_bindings_(NodeBindings::Create(false)),
       atom_bindings_(new AtomBindings) {
+  // Parse --standard-schemes=scheme1,scheme2
+  base::CommandLine* command_line = base::CommandLine::ForCurrentProcess();
+  std::string custom_schemes = command_line->GetSwitchValueASCII(
+      switches::kStandardSchemes);
+  if (!custom_schemes.empty()) {
+    std::vector<std::string> schemes_list = base::SplitString(
+        custom_schemes, ",", base::TRIM_WHITESPACE, base::SPLIT_WANT_NONEMPTY);
+    for (const std::string& scheme : schemes_list)
+      url::AddStandardScheme(scheme.c_str(), url::SCHEME_WITHOUT_PORT);
+  }
 }
 
 AtomRendererClient::~AtomRendererClient() {
@@ -272,6 +282,11 @@ void AtomRendererClient::DidCreateScriptContext(
 
 void AtomRendererClient::WillReleaseScriptContext(
     v8::Handle<v8::Context> context, content::RenderFrame* render_frame) {
+  // Only allow node integration for the main frame, unless it is a devtools
+  // extension page.
+  if (!render_frame->IsMainFrame() && !IsDevToolsExtension(render_frame))
+    return;
+
   node::Environment* env = node::Environment::GetCurrent(context);
   if (env)
     mate::EmitEvent(env->isolate(), env->process_object(), "exit");

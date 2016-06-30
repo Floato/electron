@@ -325,8 +325,8 @@ Returns:
 
 * `event` Event
 * `params` Object
-  * `x` Integer - x coodinate
-  * `y` Integer - y coodinate
+  * `x` Integer - x coordinate
+  * `y` Integer - y coordinate
   * `linkURL` String - URL of the link that encloses the node the context menu
     was invoked on.
   * `linkText` String - Text associated with the link. May be an empty
@@ -339,9 +339,9 @@ Returns:
     was invoked on. Elements with source URLs are images, audio and video.
   * `mediaType` String - Type of the node the context menu was invoked on. Can
     be `none`, `image`, `audio`, `video`, `canvas`, `file` or `plugin`.
-  * `hasImageContent` Boolean - Wether the context menu was invoked on an image
+  * `hasImageContent` Boolean - Whether the context menu was invoked on an image
     which has non-empty contents.
-  * `isEditable` Boolean - Wether the context is editable.
+  * `isEditable` Boolean - Whether the context is editable.
   * `selectionText` String - Text of the selection that the context menu was
     invoked on.
   * `titleText` String - Title or alt text of the selection that the context
@@ -356,29 +356,31 @@ Returns:
     Can be `none`, `mouse`, `keyboard`, `touch`, `touchMenu`.
   * `mediaFlags` Object - The flags for the media element the context menu was
     invoked on. See more about this below.
-  * `editFlags` Object - These flags indicate wether the renderer believes it is
+  * `editFlags` Object - These flags indicate whether the renderer believes it is
     able to perform the corresponding action. See more about this below.
 
 The `mediaFlags` is an object with the following properties:
-  * `inError` Boolean - Wether the media element has crashed.
-  * `isPaused` Boolean - Wether the media element is paused.
-  * `isMuted` Boolean - Wether the media element is muted.
-  * `hasAudio` Boolean - Wether the media element has audio.
-  * `isLooping` Boolean - Wether the media element is looping.
-  * `isControlsVisible` Boolean - Wether the media element's controls are
-    visible.
-  * `canToggleControls` Boolean - Wether the media element's controls are
-    toggleable.
-  * `canRotate` Boolean - Wether the media element can be rotated.
+
+* `inError` Boolean - Whether the media element has crashed.
+* `isPaused` Boolean - Whether the media element is paused.
+* `isMuted` Boolean - Whether the media element is muted.
+* `hasAudio` Boolean - Whether the media element has audio.
+* `isLooping` Boolean - Whether the media element is looping.
+* `isControlsVisible` Boolean - Whether the media element's controls are
+  visible.
+* `canToggleControls` Boolean - Whether the media element's controls are
+  toggleable.
+* `canRotate` Boolean - Whether the media element can be rotated.
 
 The `editFlags` is an object with the following properties:
-  * `canUndo` Boolean - Wether the renderer believes it can undo.
-  * `canRedo` Boolean - Wether the renderer believes it can redo.
-  * `canCut` Boolean - Wether the renderer believes it can cut.
-  * `canCopy` Boolean - Wether the renderer believes it can copy
-  * `canPaste` Boolean - Wether the renderer believes it can paste.
-  * `canDelete` Boolean - Wether the renderer believes it can delete.
-  * `canSelectAll` Boolean - Wether the renderer believes it can select all.
+
+* `canUndo` Boolean - Whether the renderer believes it can undo.
+* `canRedo` Boolean - Whether the renderer believes it can redo.
+* `canCut` Boolean - Whether the renderer believes it can cut.
+* `canCopy` Boolean - Whether the renderer believes it can copy
+* `canPaste` Boolean - Whether the renderer believes it can paste.
+* `canDelete` Boolean - Whether the renderer believes it can delete.
+* `canSelectAll` Boolean - Whether the renderer believes it can select all.
 
 Emitted when there is a new context menu that needs to be handled.
 
@@ -917,18 +919,25 @@ For the `mouseWheel` event, the `event` object also have following properties:
 * `hasPreciseScrollingDeltas` Boolean
 * `canScroll` Boolean
 
-### `webContents.beginFrameSubscription(callback)`
+### `webContents.beginFrameSubscription([onlyDirty ,]callback)`
 
+* `onlyDirty` Boolean (optional) - Defaults to `false`
 * `callback` Function
 
 Begin subscribing for presentation events and captured frames, the `callback`
-will be called with `callback(frameBuffer)` when there is a presentation event.
+will be called with `callback(frameBuffer, dirtyRect)` when there is a
+presentation event.
 
 The `frameBuffer` is a `Buffer` that contains raw pixel data. On most machines,
 the pixel data is effectively stored in 32bit BGRA format, but the actual
 representation depends on the endianness of the processor (most modern
 processors are little-endian, on machines with big-endian processors the data
 is in 32bit ARGB format).
+
+The `dirtyRect` is an object with `x, y, width, height` properties that
+describes which part of the page was repainted. If `onlyDirty` is set to
+`true`, `frameBuffer` will only contain the repainted area. `onlyDirty`
+defaults to `false`.
 
 ### `webContents.endFrameSubscription()`
 
@@ -956,6 +965,10 @@ win.webContents.on('did-finish-load', () => {
   });
 });
 ```
+
+### `webContents.showDefinitionForSelection()` _macOS_
+
+Shows pop-up dictionary that searches the selected word on the page.
 
 ## Instance Properties
 

@@ -289,9 +289,9 @@ Returns:
 Returns:
 
 * `event` Event
-* `url` URL
+* `url` String
 
-마우스나 키보드를 사용해 링크에 포커스를 할 때 발생하는 이벤트입니다.
+마우스나 키보드를 사용해 링크에 포커스할 때 발생하는 이벤트입니다.
 
 ### Event: 'cursor-changed'
 
@@ -674,7 +674,7 @@ ServiceWorker가 존재하면 모두 등록을 해제하고 JS Promise가 만족
 `webContents.print({silent: false, printBackground: false})`를 호출하는 것과
 같습니다.
 
-**참고:** Windows에서의 프린터 API는 `pdf.dll`에 의존합니다. 따라서 어플리케이션이
+**참고:** Windows에서의 프린터 API는 `pdf.dll`에 의존합니다. 따라서 애플리케이션이
 print기능을 사용하지 않는 경우 전체 바이너리 크기를 줄이기 위해 `pdf.dll`을 삭제해도
 됩니다.
 
@@ -944,6 +944,10 @@ win.webContents.on('did-finish-load', () => {
 });
 ```
 
+### `webContents.showDefinitionForSelection()` _macOS_
+
+페이지에서 선택된 단어에 대한 사전 검색 결과 팝업을 표시합니다.
+
 ## Instance Properties
 
 `WebContents`객체들은 다음 속성들을 가지고 있습니다:
@@ -1018,7 +1022,7 @@ win.webContents.debugger.sendCommand('Network.enable');
 
 지정한 커맨드를 디버깅 대상에게 전송합니다.
 
-#### Event: 'detach'
+### Event: 'detach'
 
 * `event` Event
 * `reason` String - 디버거 분리 사유.
@@ -1026,7 +1030,7 @@ win.webContents.debugger.sendCommand('Network.enable');
 디버깅 세션이 종료될 때 발생하는 이벤트입니다. `webContents`가 닫히거나 개발자 도구가
 부착된 `webContents`에 대해 호출될 때 발생합니다.
 
-#### Event: 'message'
+### Event: 'message'
 
 * `event` Event
 * `method` String - 메서드 이름.

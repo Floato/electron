@@ -40,11 +40,11 @@ class TrayIcon {
   virtual void SetToolTip(const std::string& tool_tip) = 0;
 
   // Sets the title displayed aside of the status icon in the status bar. This
-  // only works on OS X.
+  // only works on macOS.
   virtual void SetTitle(const std::string& title);
 
   // Sets whether the status icon is highlighted when it is clicked. This only
-  // works on OS X.
+  // works on macOS.
   virtual void SetHighlightMode(bool highlight);
 
   // Displays a notification balloon with the specified contents.
@@ -60,8 +60,12 @@ class TrayIcon {
   // Set the context menu for this icon.
   virtual void SetContextMenu(ui::SimpleMenuModel* menu_model) = 0;
 
+  // Returns the bounds of tray icon.
+  virtual gfx::Rect GetBounds();
+
   void AddObserver(TrayIconObserver* obs) { observers_.AddObserver(obs); }
   void RemoveObserver(TrayIconObserver* obs) { observers_.RemoveObserver(obs); }
+
   void NotifyClicked(const gfx::Rect& = gfx::Rect(), int modifiers = 0);
   void NotifyDoubleClicked(const gfx::Rect& = gfx::Rect(), int modifiers = 0);
   void NotifyBalloonShow();

@@ -61,11 +61,9 @@
 #include "native_mate/dictionary.h"
 #include "native_mate/object_template_builder.h"
 #include "net/http/http_response_headers.h"
-#include "net/url_request/static_http_user_agent_settings.h"
 #include "net/url_request/url_request_context.h"
 #include "third_party/WebKit/public/web/WebInputEvent.h"
 #include "third_party/WebKit/public/web/WebFindOptions.h"
-#include "ui/base/l10n/l10n_util.h"
 
 #include "atom/common/node_includes.h"
 
@@ -75,15 +73,6 @@ struct PrintSettings {
   bool silent;
   bool print_background;
 };
-
-void SetUserAgentInIO(scoped_refptr<net::URLRequestContextGetter> getter,
-                      std::string accept_lang,
-                      std::string user_agent) {
-  getter->GetURLRequestContext()->set_http_user_agent_settings(
-      new net::StaticHttpUserAgentSettings(
-          net::HttpUtil::GenerateAcceptLanguageHeader(accept_lang),
-          user_agent));
-}
 
 }  // namespace
 
@@ -187,6 +176,39 @@ struct Converter<content::SavePageType> {
   }
 };
 
+template<>
+struct Converter<atom::api::WebContents::Type> {
+  static v8::Local<v8::Value> ToV8(v8::Isolate* isolate,
+                                   atom::api::WebContents::Type val) {
+    using Type = atom::api::WebContents::Type;
+    std::string type = "";
+    switch (val) {
+      case Type::BACKGROUND_PAGE: type = "backgroundPage"; break;
+      case Type::BROWSER_WINDOW: type = "window"; break;
+      case Type::REMOTE: type = "remote"; break;
+      case Type::WEB_VIEW: type = "webview"; break;
+      default: break;
+    }
+    return mate::ConvertToV8(isolate, type);
+  }
+
+  static bool FromV8(v8::Isolate* isolate, v8::Local<v8::Value> val,
+                     atom::api::WebContents::Type* out) {
+    using Type = atom::api::WebContents::Type;
+    std::string type;
+    if (!ConvertFromV8(isolate, val, &type))
+      return false;
+    if (type == "webview") {
+      *out = Type::WEB_VIEW;
+    } else if (type == "backgroundPage") {
+      *out = Type::BACKGROUND_PAGE;
+    } else {
+      return false;
+    }
+    return true;
+  }
+};
+
 }  // namespace mate
 
 
@@ -233,15 +255,22 @@ WebContents::WebContents(v8::Isolate* isolate,
 WebContents::WebContents(v8::Isolate* isolate,
                          const mate::Dictionary& options)
     : embedder_(nullptr),
+      type_(BROWSER_WINDOW),
       request_id_(0),
       background_throttling_(true) {
   // Read options.
   options.Get("backgroundThrottling", &background_throttling_);
 
-  // Whether it is a guest WebContents.
-  bool is_guest = false;
-  options.Get("isGuest", &is_guest);
-  type_ = is_guest ? WEB_VIEW : BROWSER_WINDOW;
+  // FIXME(zcbenz): We should read "type" parameter for better design, but
+  // on Windows we have encountered a compiler bug that if we read "type"
+  // from |options| and then set |type_|, a memory corruption will happen
+  // and Electron will soon crash.
+  // Remvoe this after we upgraded to use VS 2015 Update 3.
+  bool b = false;
+  if (options.Get("isGuest", &b) && b)
+    type_ = WEB_VIEW;
+  else if (options.Get("isBackgroundPage", &b) && b)
+    type_ = BACKGROUND_PAGE;
 
   // Obtain the session.
   std::string partition;
@@ -261,7 +290,7 @@ WebContents::WebContents(v8::Isolate* isolate,
   session_.Reset(isolate, session.ToV8());
 
   content::WebContents* web_contents;
-  if (is_guest) {
+  if (IsGuest()) {
     scoped_refptr<content::SiteInstance> site_instance =
         content::SiteInstance::CreateForURL(
             session->browser_context(), GURL("chrome-guest://fake-host"));
@@ -290,7 +319,7 @@ WebContents::WebContents(v8::Isolate* isolate,
 
   web_contents->SetUserAgentOverride(GetBrowserContext()->GetUserAgent());
 
-  if (is_guest) {
+  if (IsGuest()) {
     guest_delegate_->Initialize(this);
 
     NativeWindow* owner_window = nullptr;
@@ -578,7 +607,10 @@ void WebContents::DidFailProvisionalLoad(
     bool was_ignored_by_handler) {
   bool is_main_frame = !render_frame_host->GetParent();
   Emit("did-fail-provisional-load", code, description, url, is_main_frame);
-  Emit("did-fail-load", code, description, url, is_main_frame);
+
+  // Do not emit "did-fail-load" for canceled requests.
+  if (code != net::ERR_ABORTED)
+    Emit("did-fail-load", code, description, url, is_main_frame);
 }
 
 void WebContents::DidFailLoad(content::RenderFrameHost* render_frame_host,
@@ -744,6 +776,10 @@ int WebContents::GetID() const {
   return web_contents()->GetRenderProcessHost()->GetID();
 }
 
+WebContents::Type WebContents::GetType() const {
+  return type_;
+}
+
 bool WebContents::Equal(const WebContents* web_contents) const {
   return GetID() == web_contents->GetID();
 }
@@ -767,7 +803,7 @@ void WebContents::LoadURL(const GURL& url, const mate::Dictionary& options) {
 
   std::string user_agent;
   if (options.Get("userAgent", &user_agent))
-    SetUserAgent(user_agent);
+    web_contents()->SetUserAgentOverride(user_agent);
 
   std::string extra_headers;
   if (options.Get("extraHeaders", &extra_headers))
@@ -854,14 +890,9 @@ bool WebContents::IsCrashed() const {
   return web_contents()->IsCrashed();
 }
 
-void WebContents::SetUserAgent(const std::string& user_agent) {
+void WebContents::SetUserAgent(const std::string& user_agent,
+                               mate::Arguments* args) {
   web_contents()->SetUserAgentOverride(user_agent);
-  scoped_refptr<net::URLRequestContextGetter> getter =
-      web_contents()->GetBrowserContext()->GetRequestContext();
-
-  auto accept_lang = l10n_util::GetApplicationLocale("");
-  getter->GetNetworkTaskRunner()->PostTask(FROM_HERE,
-      base::Bind(&SetUserAgentInIO, getter, accept_lang, user_agent));
 }
 
 std::string WebContents::GetUserAgent() {
@@ -1094,6 +1125,14 @@ void WebContents::StopFindInPage(content::StopFindAction action) {
   web_contents()->StopFinding(action);
 }
 
+void WebContents::ShowDefinitionForSelection() {
+#if defined(OS_MACOSX)
+  const auto view = web_contents()->GetRenderWidgetHostView();
+  if (view)
+    view->ShowDefinitionForSelection();
+#endif
+}
+
 void WebContents::Focus() {
   web_contents()->Focus();
 }
@@ -1142,12 +1181,20 @@ void WebContents::SendInputEvent(v8::Isolate* isolate,
       isolate, "Invalid event object")));
 }
 
-void WebContents::BeginFrameSubscription(
-    const FrameSubscriber::FrameCaptureCallback& callback) {
+void WebContents::BeginFrameSubscription(mate::Arguments* args) {
+  bool only_dirty = false;
+  FrameSubscriber::FrameCaptureCallback callback;
+
+  args->GetNext(&only_dirty);
+  if (!args->GetNext(&callback)) {
+    args->ThrowError();
+    return;
+  }
+
   const auto view = web_contents()->GetRenderWidgetHostView();
   if (view) {
     std::unique_ptr<FrameSubscriber> frame_subscriber(new FrameSubscriber(
-        isolate(), view, callback));
+        isolate(), view, callback, only_dirty));
     view->BeginFrameSubscription(std::move(frame_subscriber));
   }
 }
@@ -1279,6 +1326,7 @@ void WebContents::BuildPrototype(v8::Isolate* isolate,
       .SetMethod("endFrameSubscription", &WebContents::EndFrameSubscription)
       .SetMethod("setSize", &WebContents::SetSize)
       .SetMethod("isGuest", &WebContents::IsGuest)
+      .SetMethod("getType", &WebContents::GetType)
       .SetMethod("getWebPreferences", &WebContents::GetWebPreferences)
       .SetMethod("getOwnerBrowserWindow", &WebContents::GetOwnerBrowserWindow)
       .SetMethod("hasServiceWorker", &WebContents::HasServiceWorker)
@@ -1289,6 +1337,8 @@ void WebContents::BuildPrototype(v8::Isolate* isolate,
       .SetMethod("_printToPDF", &WebContents::PrintToPDF)
       .SetMethod("addWorkSpace", &WebContents::AddWorkSpace)
       .SetMethod("removeWorkSpace", &WebContents::RemoveWorkSpace)
+      .SetMethod("showDefinitionForSelection",
+                 &WebContents::ShowDefinitionForSelection)
       .SetProperty("id", &WebContents::ID)
       .SetProperty("session", &WebContents::Session)
       .SetProperty("hostWebContents", &WebContents::HostWebContents)
@@ -1355,6 +1405,8 @@ void Initialize(v8::Local<v8::Object> exports, v8::Local<v8::Value> unused,
   dict.SetMethod("_setWrapWebContents", &atom::api::SetWrapWebContents);
   dict.SetMethod("fromId",
                  &mate::TrackableObject<atom::api::WebContents>::FromWeakMapID);
+  dict.SetMethod("getAllWebContents",
+                 &mate::TrackableObject<atom::api::WebContents>::GetAll);
 }
 
 }  // namespace
