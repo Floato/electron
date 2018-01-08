@@ -17,6 +17,7 @@
 #include "atom/browser/atom_speech_recognition_manager_delegate.h"
 #include "atom/browser/child_web_contents_tracker.h"
 #include "atom/browser/native_window.h"
+#include "atom/browser/session_preferences.h"
 #include "atom/browser/web_contents_permission_helper.h"
 #include "atom/browser/web_contents_preferences.h"
 #include "atom/browser/window_list.h"
@@ -201,10 +202,6 @@ void AtomBrowserClient::OverrideWebkitPrefs(
   WebContentsPreferences::OverrideWebkitPrefs(web_contents, prefs);
 }
 
-std::string AtomBrowserClient::GetApplicationLocale() {
-  return l10n_util::GetApplicationLocale("");
-}
-
 void AtomBrowserClient::OverrideSiteInstanceForNavigation(
     content::RenderFrameHost* render_frame_host,
     content::BrowserContext* browser_context,
@@ -234,9 +231,7 @@ void AtomBrowserClient::OverrideSiteInstanceForNavigation(
   // Remember the original web contents for the pending renderer process.
   auto pending_process = (*new_instance)->GetProcess();
   pending_processes_[pending_process->GetID()] =
-      content::WebContents::FromRenderFrameHost(render_frame_host);;
-  // Clear the entry in map when process ends.
-  pending_process->AddObserver(this);
+      content::WebContents::FromRenderFrameHost(render_frame_host);
 }
 
 void AtomBrowserClient::AppendExtraCommandLineSwitches(
@@ -277,9 +272,12 @@ void AtomBrowserClient::AppendExtraCommandLineSwitches(
   }
 
   content::WebContents* web_contents = GetWebContentsFromProcessID(process_id);
-  if (web_contents)
+  if (web_contents) {
     WebContentsPreferences::AppendExtraCommandLineSwitches(
         web_contents, command_line);
+    SessionPreferences::AppendExtraCommandLineSwitches(
+        web_contents->GetBrowserContext(), command_line);
+  }
 }
 
 void AtomBrowserClient::DidCreatePpapiPlugin(
@@ -347,7 +345,7 @@ bool AtomBrowserClient::CanCreateWindow(
     bool user_gesture,
     bool opener_suppressed,
     bool* no_javascript_access) {
-  DCHECK_CURRENTLY_ON(content::BrowserThread::IO);
+  DCHECK_CURRENTLY_ON(content::BrowserThread::UI);
 
   int opener_render_process_id = opener->GetProcess()->GetID();
 
@@ -368,15 +366,11 @@ bool AtomBrowserClient::CanCreateWindow(
   }
 
   if (delegate_) {
-    content::BrowserThread::PostTask(content::BrowserThread::UI, FROM_HERE,
-        base::Bind(&api::App::OnCreateWindow,
-                   base::Unretained(static_cast<api::App*>(delegate_)),
-                                    target_url,
-                                    frame_name,
-                                    disposition,
-                                    additional_features,
-                                    body,
-                                    opener));
+    return delegate_->CanCreateWindow(
+        opener, opener_url, opener_top_level_frame_url, source_origin,
+        container_type, target_url, referrer, frame_name, disposition, features,
+        additional_features, body, user_gesture, opener_suppressed,
+        no_javascript_access);
   }
 
   return false;

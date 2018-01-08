@@ -4,7 +4,7 @@ const http = require('http')
 const path = require('path')
 const ws = require('ws')
 const url = require('url')
-const {ipcRenderer, remote, webFrame} = require('electron')
+const {ipcRenderer, remote} = require('electron')
 const {closeWindow} = require('./window-helpers')
 
 const {app, BrowserWindow, ipcMain, protocol, session, webContents} = remote
@@ -30,12 +30,6 @@ describe('chromium feature', () => {
 
   describe('heap snapshot', () => {
     it('does not crash', function () {
-      if (process.env.TRAVIS === 'true') {
-        // FIXME(alexeykuzmin): Skip the test.
-        // this.skip()
-        return
-      }
-
       process.atomBinding('v8_util').takeHeapSnapshot()
     })
   })
@@ -173,12 +167,6 @@ describe('chromium feature', () => {
   })
 
   describe('window.open', () => {
-    before(function () {
-      if (process.env.TRAVIS === 'true' && process.platform === 'darwin') {
-        this.skip()
-      }
-    })
-
     it('returns a BrowserWindowProxy object', () => {
       const b = window.open('about:blank', '', 'show=no')
       assert.equal(b.closed, false)
@@ -1055,13 +1043,6 @@ describe('chromium feature', () => {
     })
 
     it('should not open when pdf is requested as sub resource', (done) => {
-      createBrowserWindow({plugins: true, preload: 'preload-pdf-loaded.js'})
-      webFrame.registerURLSchemeAsPrivileged('file', {
-        secure: false,
-        bypassCSP: false,
-        allowServiceWorkers: false,
-        corsEnabled: false
-      })
       fetch(pdfSource).then((res) => {
         assert.equal(res.status, 200)
         assert.notEqual(document.title, 'cat.pdf')

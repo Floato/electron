@@ -45,6 +45,7 @@ int NodeMain(int argc, char *argv[]) {
     // V8 requires a task scheduler apparently
     base::TaskScheduler::CreateAndStartWithDefaultParams("Electron");
 
+    // Initialize gin::IsolateHolder.
     JavascriptEnvironment gin_env;
 
     int exec_argc;
@@ -58,7 +59,7 @@ int NodeMain(int argc, char *argv[]) {
 
     // Enable support for v8 inspector.
     NodeDebugger node_debugger(env);
-    node_debugger.Start();
+    node_debugger.Start(gin_env.platform());
 
     mate::Dictionary process(gin_env.isolate(), env->process_object());
 #if defined(OS_WIN)

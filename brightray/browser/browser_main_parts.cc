@@ -16,8 +16,10 @@
 #include "base/message_loop/message_loop.h"
 #include "base/strings/string_number_conversions.h"
 #include "base/strings/utf_string_conversions.h"
+#include "brightray/browser/browser_client.h"
 #include "brightray/browser/browser_context.h"
 #include "brightray/browser/devtools_manager_delegate.h"
+#include "brightray/browser/media/media_capture_devices_dispatcher.h"
 #include "brightray/browser/web_ui_controller_factory.h"
 #include "brightray/common/application_info.h"
 #include "brightray/common/main_delegate.h"
@@ -268,8 +270,17 @@ int BrowserMainParts::PreCreateThreads() {
 #endif
 #endif
 
+  // Force MediaCaptureDevicesDispatcher to be created on UI thread.
+  MediaCaptureDevicesDispatcher::GetInstance();
+
   if (!views::LayoutProvider::Get())
     layout_provider_.reset(new views::LayoutProvider());
+
+  // Initialize the app locale.
+  BrowserClient::SetApplicationLocale(l10n_util::GetApplicationLocale(""));
+
+  // Manage global state of net and other IO thread related.
+  io_thread_ = base::MakeUnique<IOThread>();
 
   return 0;
 }
@@ -279,6 +290,8 @@ void BrowserMainParts::PostDestroyThreads() {
   device::BluetoothAdapterFactory::Shutdown();
   bluez::DBusBluezManagerWrapperLinux::Shutdown();
 #endif
+
+  io_thread_.reset();
 }
 
 }  // namespace brightray
