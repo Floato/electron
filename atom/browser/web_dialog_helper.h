@@ -13,6 +13,7 @@ class FilePath;
 
 namespace content {
 struct FileChooserParams;
+class RenderFrameHost;
 class WebContents;
 }
 
@@ -22,10 +23,10 @@ class NativeWindow;
 
 class WebDialogHelper {
  public:
-  explicit WebDialogHelper(NativeWindow* window);
+  WebDialogHelper(NativeWindow* window, bool offscreen);
   ~WebDialogHelper();
 
-  void RunFileChooser(content::WebContents* web_contents,
+  void RunFileChooser(content::RenderFrameHost* render_frame_host,
                       const content::FileChooserParams& params);
   void EnumerateDirectory(content::WebContents* web_contents,
                           int request_id,
@@ -33,6 +34,7 @@ class WebDialogHelper {
 
  private:
   NativeWindow* window_;
+  bool offscreen_;
 
   base::WeakPtrFactory<WebDialogHelper> weak_factory_;
 

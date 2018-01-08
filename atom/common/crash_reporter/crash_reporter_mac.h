@@ -5,13 +5,14 @@
 #ifndef ATOM_COMMON_CRASH_REPORTER_CRASH_REPORTER_MAC_H_
 #define ATOM_COMMON_CRASH_REPORTER_CRASH_REPORTER_MAC_H_
 
+#include <map>
 #include <string>
 #include <vector>
 
 #include "atom/common/crash_reporter/crash_reporter.h"
 #include "base/compiler_specific.h"
-#include "base/memory/scoped_ptr.h"
 #include "base/strings/string_piece.h"
+#include "vendor/crashpad/client/crash_report_database.h"
 #include "vendor/crashpad/client/simple_string_dictionary.h"
 
 namespace base {
@@ -28,9 +29,16 @@ class CrashReporterMac : public CrashReporter {
                     const std::string& version,
                     const std::string& company_name,
                     const std::string& submit_url,
-                    bool auto_submit,
+                    const base::FilePath& crashes_dir,
+                    bool upload_to_server,
                     bool skip_system_crash_handler) override;
   void SetUploadParameters() override;
+  void SetUploadToServer(bool upload_to_server) override;
+  bool GetUploadToServer() override;
+  void AddExtraParameter(const std::string& key,
+                         const std::string& value) override;
+  void RemoveExtraParameter(const std::string& key) override;
+  std::map<std::string, std::string> GetParameters() const override;
 
  private:
   friend struct base::DefaultSingletonTraits<CrashReporterMac>;
@@ -43,9 +51,10 @@ class CrashReporterMac : public CrashReporter {
                         const base::StringPiece& value);
 
   std::vector<UploadReportResult> GetUploadedReports(
-      const std::string& path) override;
+      const base::FilePath& crashes_dir) override;
 
   std::unique_ptr<crashpad::SimpleStringDictionary> simple_string_dictionary_;
+  std::unique_ptr<crashpad::CrashReportDatabase> database_;
 
   DISALLOW_COPY_AND_ASSIGN(CrashReporterMac);
 };

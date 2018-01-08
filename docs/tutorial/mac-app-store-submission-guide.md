@@ -33,7 +33,7 @@ After finishing the preparation work, you can package your app by following
 signing your app.
 
 First, you have to add a `ElectronTeamID` key to your app's `Info.plist`, which
-has your Team ID as key:
+has your Team ID as value:
 
 ```xml
 <plist version="1.0">
@@ -45,7 +45,7 @@ has your Team ID as key:
 </plist>
 ```
 
-Then, you need to prepare two entitlements files.
+Then, you need to prepare three entitlements files.
 
 `child.plist`:
 
@@ -77,12 +77,25 @@ Then, you need to prepare two entitlements files.
 </plist>
 ```
 
+`loginhelper.plist`:
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+  <dict>
+    <key>com.apple.security.app-sandbox</key>
+    <true/>
+  </dict>
+</plist>
+```
+
 You have to replace `TEAM_ID` with your Team ID, and replace `your.bundle.id`
 with the Bundle ID of your app.
 
 And then sign your app with the following script:
 
-```bash
+```sh
 #!/bin/bash
 
 # Name of your app.
@@ -97,6 +110,7 @@ INSTALLER_KEY="3rd Party Mac Developer Installer: Company Name (APPIDENTITY)"
 # The path of your plist files.
 CHILD_PLIST="/path/to/child.plist"
 PARENT_PLIST="/path/to/parent.plist"
+LOGINHELPER_PLIST="/path/to/loginhelper.plist"
 
 FRAMEWORKS_PATH="$APP_PATH/Contents/Frameworks"
 
@@ -110,6 +124,8 @@ codesign -s "$APP_KEY" -f --entitlements "$CHILD_PLIST" "$FRAMEWORKS_PATH/$APP H
 codesign -s "$APP_KEY" -f --entitlements "$CHILD_PLIST" "$FRAMEWORKS_PATH/$APP Helper EH.app/"
 codesign -s "$APP_KEY" -f --entitlements "$CHILD_PLIST" "$FRAMEWORKS_PATH/$APP Helper NP.app/Contents/MacOS/$APP Helper NP"
 codesign -s "$APP_KEY" -f --entitlements "$CHILD_PLIST" "$FRAMEWORKS_PATH/$APP Helper NP.app/"
+codesign -s "$APP_KEY" -f --entitlements "$LOGINHELPER_PLIST" "$APP_PATH/Contents/Library/LoginItems/$APP Login Helper.app/Contents/MacOS/$APP Login Helper"
+codesign -s "$APP_KEY" -f --entitlements "$LOGINHELPER_PLIST" "$APP_PATH/Contents/Library/LoginItems/$APP Login Helper.app/"
 codesign -s "$APP_KEY" -f --entitlements "$CHILD_PLIST" "$APP_PATH/Contents/MacOS/$APP"
 codesign -s "$APP_KEY" -f --entitlements "$PARENT_PLIST" "$APP_PATH"
 
@@ -129,14 +145,15 @@ Native modules used in your app also need to be signed. If using
 electron-osx-sign, be sure to include the path to the built binaries in the
 argument list:
 
-```bash
+```sh
 electron-osx-sign YourApp.app YourApp.app/Contents/Resources/app/node_modules/nativemodule/build/release/nativemodule
 ```
 
 Also note that native modules may have intermediate files produced which should
 not be included (as they would also need to be signed). If you use
-[electron-packager][electron-packager], add `--ignore=.+\.o$` to build step to
-ignore these files.
+[electron-packager][electron-packager] before version 8.1.0, add
+`--ignore=.+\.o$` to your build step to ignore these files. Versions 8.1.0 and
+later ignores those files by default.
 
 ### Upload Your App
 
@@ -172,6 +189,26 @@ Depending on which Electron APIs your app uses, you may need to add additional
 entitlements to your `parent.plist` file to be able to use these APIs from your
 app's Mac App Store build.
 
+#### Network Access
+
+Enable outgoing network connections to allow your app to connect to a server:
+
+```xml
+<key>com.apple.security.network.client</key>
+<true/>
+```
+
+Enable incoming network connections to allow your app to open a network
+listening socket:
+
+```xml
+<key>com.apple.security.network.server</key>
+<true/>
+```
+
+See the [Enabling Network Access documentation][network-access] for more
+details.
+
 #### dialog.showOpenDialog
 
 ```xml
@@ -191,6 +228,17 @@ more details.
 
 See the [Enabling User-Selected File Access documentation][user-selected] for
 more details.
+
+## Known issues
+
+### `shell.openItem(filePath)` 
+
+This will fail when the app is signed for distribution in the Mac App Store.
+Subscribe to [#9005](https://github.com/electron/electron/issues/9005) for updates.
+
+#### Workaround
+
+`shell.openExternal('file://' + filePath)` will open the file in the default application as long as the extension is associated with an installed app.
 
 ## Cryptographic Algorithms Used by Electron
 
@@ -240,3 +288,4 @@ ERN)][ern-tutorial].
 [ern-tutorial]: https://carouselapps.com/2015/12/15/legally-submit-app-apples-app-store-uses-encryption-obtain-ern/
 [temporary-exception]: https://developer.apple.com/library/mac/documentation/Miscellaneous/Reference/EntitlementKeyReference/Chapters/AppSandboxTemporaryExceptionEntitlements.html
 [user-selected]: https://developer.apple.com/library/mac/documentation/Miscellaneous/Reference/EntitlementKeyReference/Chapters/EnablingAppSandbox.html#//apple_ref/doc/uid/TP40011195-CH4-SW6
+[network-access]: https://developer.apple.com/library/ios/documentation/Miscellaneous/Reference/EntitlementKeyReference/Chapters/EnablingAppSandbox.html#//apple_ref/doc/uid/TP40011195-CH4-SW9

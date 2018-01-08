@@ -8,7 +8,7 @@
 #include <vector>
 
 #include "base/containers/hash_tables.h"
-#include "content/public/renderer/render_process_observer.h"
+#include "content/public/renderer/render_thread_observer.h"
 #include "third_party/WebKit/public/platform/WebSpeechSynthesizer.h"
 #include "third_party/WebKit/public/platform/WebSpeechSynthesizerClient.h"
 
@@ -27,23 +27,22 @@ struct TtsVoice;
 // the utterance id (which is globally unique) matches.
 class TtsDispatcher
     : public blink::WebSpeechSynthesizer,
-      public content::RenderProcessObserver {
+      public content::RenderThreadObserver {
  public:
   explicit TtsDispatcher(blink::WebSpeechSynthesizerClient* client);
-
- private:
   virtual ~TtsDispatcher();
 
+ private:
   // RenderProcessObserver override.
   virtual bool OnControlMessageReceived(const IPC::Message& message) override;
 
   // blink::WebSpeechSynthesizer implementation.
-  virtual void updateVoiceList() override;
-  virtual void speak(const blink::WebSpeechSynthesisUtterance& utterance)
+  virtual void UpdateVoiceList() override;
+  virtual void Speak(const blink::WebSpeechSynthesisUtterance& utterance)
       override;
-  virtual void pause() override;
-  virtual void resume() override;
-  virtual void cancel() override;
+  virtual void Pause() override;
+  virtual void Resume() override;
+  virtual void Cancel() override;
 
   blink::WebSpeechSynthesisUtterance FindUtterance(int utterance_id);
 

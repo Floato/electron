@@ -2,6 +2,7 @@ const assert = require('assert')
 const ChildProcess = require('child_process')
 const fs = require('fs')
 const path = require('path')
+const {closeWindow} = require('./window-helpers')
 
 const nativeImage = require('electron').nativeImage
 const remote = require('electron').remote
@@ -13,6 +14,11 @@ describe('asar package', function () {
   var fixtures = path.join(__dirname, 'fixtures')
 
   describe('node api', function () {
+    it('supports paths specified as a Buffer', function () {
+      var file = Buffer.from(path.join(fixtures, 'asar', 'a.asar', 'file1'))
+      assert.equal(fs.existsSync(file), true)
+    })
+
     describe('fs.readFileSync', function () {
       it('does not leak fd', function () {
         var readCalls = 1
@@ -89,6 +95,15 @@ describe('asar package', function () {
         fs.readFile(p, function (err, content) {
           assert.equal(err, null)
           assert.equal(String(content), '')
+          done()
+        })
+      })
+
+      it('reads from a empty file with encoding', function (done) {
+        var p = path.join(fixtures, 'asar', 'empty.asar', 'file1')
+        fs.readFile(p, 'utf8', function (err, content) {
+          assert.equal(err, null)
+          assert.equal(content, '')
           done()
         })
       })
@@ -476,7 +491,7 @@ describe('asar package', function () {
           file = ref2[j]
           p = path.join(fixtures, 'asar', 'a.asar', file)
           fd = fs.openSync(p, 'r')
-          buffer = new Buffer(6)
+          buffer = Buffer.alloc(6)
           fs.readSync(fd, buffer, 0, 6, 0)
           assert.equal(String(buffer).trim(), 'file1')
           fs.closeSync(fd)
@@ -497,7 +512,7 @@ describe('asar package', function () {
         var p = path.join(fixtures, 'asar', 'a.asar', 'file1')
         fs.open(p, 'r', function (err, fd) {
           assert.equal(err, null)
-          var buffer = new Buffer(6)
+          var buffer = Buffer.alloc(6)
           fs.read(fd, buffer, 0, 6, 0, function (err) {
             assert.equal(err, null)
             assert.equal(String(buffer).trim(), 'file1')
@@ -531,6 +546,70 @@ describe('asar package', function () {
         assert.throws(function () {
           fs.mkdirSync(p)
         }, new RegExp('ENOTDIR'))
+      })
+    })
+
+    describe('fs.access', function () {
+      it('accesses a normal file', function (done) {
+        var p = path.join(fixtures, 'asar', 'a.asar', 'file1')
+        fs.access(p, function (err) {
+          assert(err == null)
+          done()
+        })
+      })
+
+      it('throws an error when called with write mode', function (done) {
+        var p = path.join(fixtures, 'asar', 'a.asar', 'file1')
+        fs.access(p, fs.constants.R_OK | fs.constants.W_OK, function (err) {
+          assert.equal(err.code, 'EACCES')
+          done()
+        })
+      })
+
+      it('throws an error when called on non-existent file', function (done) {
+        var p = path.join(fixtures, 'asar', 'a.asar', 'not-exist')
+        fs.access(p, function (err) {
+          assert.equal(err.code, 'ENOENT')
+          done()
+        })
+      })
+
+      it('allows write mode for unpacked files', function (done) {
+        var p = path.join(fixtures, 'asar', 'unpack.asar', 'a.txt')
+        fs.access(p, fs.constants.R_OK | fs.constants.W_OK, function (err) {
+          assert(err == null)
+          done()
+        })
+      })
+    })
+
+    describe('fs.accessSync', function () {
+      it('accesses a normal file', function () {
+        var p = path.join(fixtures, 'asar', 'a.asar', 'file1')
+        assert.doesNotThrow(function () {
+          fs.accessSync(p)
+        })
+      })
+
+      it('throws an error when called with write mode', function () {
+        var p = path.join(fixtures, 'asar', 'a.asar', 'file1')
+        assert.throws(function () {
+          fs.accessSync(p, fs.constants.R_OK | fs.constants.W_OK)
+        }, /EACCES/)
+      })
+
+      it('throws an error when called on non-existent file', function () {
+        var p = path.join(fixtures, 'asar', 'a.asar', 'not-exist')
+        assert.throws(function () {
+          fs.accessSync(p)
+        }, /ENOENT/)
+      })
+
+      it('allows write mode for unpacked files', function () {
+        var p = path.join(fixtures, 'asar', 'unpack.asar', 'a.txt')
+        assert.doesNotThrow(function () {
+          fs.accessSync(p, fs.constants.R_OK | fs.constants.W_OK)
+        })
       })
     })
 
@@ -579,12 +658,15 @@ describe('asar package', function () {
 
     describe('child_process.execFile', function () {
       var echo, execFile, execFileSync
-      if (process.platform !== 'darwin') {
-        return
-      }
       execFile = ChildProcess.execFile
       execFileSync = ChildProcess.execFileSync
       echo = path.join(fixtures, 'asar', 'echo.asar', 'echo')
+
+      before(function () {
+        if (process.platform !== 'darwin') {
+          this.skip()
+        }
+      })
 
       it('executes binaries', function (done) {
         execFile(echo, ['test'], function (error, stdout) {
@@ -674,11 +756,59 @@ describe('asar package', function () {
           fs.readdirSync(asar)
         }, /ENOTDIR/)
       })
+
+      it('is reset to its original value when execSync throws an error', function () {
+        process.noAsar = false
+        assert.throws(function () {
+          ChildProcess.execSync(path.join(__dirname, 'does-not-exist.txt'))
+        })
+        assert.equal(process.noAsar, false)
+      })
+    })
+
+    describe('process.env.ELECTRON_NO_ASAR', function () {
+      it('disables asar support in forked processes', function (done) {
+        const forked = ChildProcess.fork(path.join(__dirname, 'fixtures', 'module', 'no-asar.js'), [], {
+          env: {
+            ELECTRON_NO_ASAR: true
+          }
+        })
+        forked.on('message', function (stats) {
+          assert.equal(stats.isFile, true)
+          assert.equal(stats.size, 778)
+          done()
+        })
+      })
+
+      it('disables asar support in spawned processes', function (done) {
+        const spawned = ChildProcess.spawn(process.execPath, [path.join(__dirname, 'fixtures', 'module', 'no-asar.js')], {
+          env: {
+            ELECTRON_NO_ASAR: true,
+            ELECTRON_RUN_AS_NODE: true
+          }
+        })
+
+        let output = ''
+        spawned.stdout.on('data', function (data) {
+          output += data
+        })
+        spawned.stdout.on('close', function () {
+          const stats = JSON.parse(output)
+          assert.equal(stats.isFile, true)
+          assert.equal(stats.size, 778)
+          done()
+        })
+      })
     })
   })
 
   describe('asar protocol', function () {
     var url = require('url')
+    var w = null
+
+    afterEach(function () {
+      return closeWindow(w).then(function () { w = null })
+    })
 
     it('can request a file in package', function (done) {
       var p = path.resolve(fixtures, 'asar', 'a.asar', 'file1')
@@ -725,11 +855,10 @@ describe('asar package', function () {
 
     it('sets __dirname correctly', function (done) {
       after(function () {
-        w.destroy()
         ipcMain.removeAllListeners('dirname')
       })
 
-      var w = new BrowserWindow({
+      w = new BrowserWindow({
         show: false,
         width: 400,
         height: 400
@@ -749,11 +878,10 @@ describe('asar package', function () {
 
     it('loads script tag in html', function (done) {
       after(function () {
-        w.destroy()
         ipcMain.removeAllListeners('ping')
       })
 
-      var w = new BrowserWindow({
+      w = new BrowserWindow({
         show: false,
         width: 400,
         height: 400
@@ -768,6 +896,35 @@ describe('asar package', function () {
       ipcMain.once('ping', function (event, message) {
         assert.equal(message, 'pong')
         done()
+      })
+    })
+
+    it('loads video tag in html', function (done) {
+      this.timeout(60000)
+
+      after(function () {
+        ipcMain.removeAllListeners('asar-video')
+      })
+
+      w = new BrowserWindow({
+        show: false,
+        width: 400,
+        height: 400
+      })
+      var p = path.resolve(fixtures, 'asar', 'video.asar', 'index.html')
+      var u = url.format({
+        protocol: 'file',
+        slashed: true,
+        pathname: p
+      })
+      w.loadURL(u)
+      ipcMain.on('asar-video', function (event, message, error) {
+        if (message === 'ended') {
+          assert(!error)
+          done()
+        } else if (message === 'error') {
+          done(error)
+        }
       })
     })
   })

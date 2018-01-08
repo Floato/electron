@@ -4,7 +4,8 @@
 
 #include "chrome/renderer/pepper/pepper_shared_memory_message_filter.h"
 
-#include "base/memory/scoped_ptr.h"
+#include <memory>
+
 #include "base/memory/shared_memory.h"
 #include "base/process/process_handle.h"
 #include "content/public/common/content_client.h"
@@ -48,8 +49,7 @@ void PepperSharedMemoryMessageFilter::OnHostMsgCreateSharedMemory(
   if (!shm.get())
     return;
 
-  base::SharedMemoryHandle host_shm_handle;
-  shm->ShareToProcess(base::GetCurrentProcessHandle(), &host_shm_handle);
+  base::SharedMemoryHandle host_shm_handle = shm->handle().Duplicate();
   *host_handle_id =
       content::PepperPluginInstance::Get(instance)
           ->GetVarTracker()

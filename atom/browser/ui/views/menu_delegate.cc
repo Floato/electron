@@ -5,10 +5,10 @@
 #include "atom/browser/ui/views/menu_delegate.h"
 
 #include "atom/browser/ui/views/menu_bar.h"
+#include "atom/browser/ui/views/menu_model_adapter.h"
 #include "content/public/browser/browser_thread.h"
 #include "ui/views/controls/button/menu_button.h"
 #include "ui/views/controls/menu/menu_item_view.h"
-#include "ui/views/controls/menu/menu_model_adapter.h"
 #include "ui/views/controls/menu/menu_runner.h"
 #include "ui/views/widget/widget.h"
 
@@ -22,7 +22,7 @@ MenuDelegate::MenuDelegate(MenuBar* menu_bar)
 MenuDelegate::~MenuDelegate() {
 }
 
-void MenuDelegate::RunMenu(ui::MenuModel* model, views::MenuButton* button) {
+void MenuDelegate::RunMenu(AtomMenuModel* model, views::MenuButton* button) {
   gfx::Point screen_loc;
   views::View::ConvertPointToScreen(button, &screen_loc);
   // Subtract 1 from the height to make the popup flush with the button border.
@@ -30,20 +30,20 @@ void MenuDelegate::RunMenu(ui::MenuModel* model, views::MenuButton* button) {
                    button->height() - 1);
 
   id_ = button->tag();
-  adapter_.reset(new views::MenuModelAdapter(model));
+  adapter_.reset(new MenuModelAdapter(model));
 
   views::MenuItemView* item = new views::MenuItemView(this);
-  static_cast<views::MenuModelAdapter*>(adapter_.get())->BuildMenu(item);
+  static_cast<MenuModelAdapter*>(adapter_.get())->BuildMenu(item);
 
   menu_runner_.reset(new views::MenuRunner(
       item,
       views::MenuRunner::CONTEXT_MENU | views::MenuRunner::HAS_MNEMONICS));
-  ignore_result(menu_runner_->RunMenuAt(
+  menu_runner_->RunMenuAt(
       button->GetWidget()->GetTopLevelWidget(),
       button,
       bounds,
       views::MENU_ANCHOR_TOPRIGHT,
-      ui::MENU_SOURCE_MOUSE));
+      ui::MENU_SOURCE_MOUSE);
 }
 
 void MenuDelegate::ExecuteCommand(int id) {
@@ -95,24 +95,35 @@ void MenuDelegate::WillHideMenu(views::MenuItemView* menu) {
   adapter_->WillHideMenu(menu);
 }
 
+void MenuDelegate::OnMenuClosed(views::MenuItemView* menu) {
+  // Only switch to new menu when current menu is closed.
+  if (button_to_open_)
+    button_to_open_->Activate(nullptr);
+  delete this;
+}
+
 views::MenuItemView* MenuDelegate::GetSiblingMenu(
     views::MenuItemView* menu,
     const gfx::Point& screen_point,
     views::MenuAnchorPosition* anchor,
     bool* has_mnemonics,
     views::MenuButton**) {
+  // TODO(zcbenz): We should follow Chromium's logics on implementing the
+  // sibling menu switches, this code is almost a hack.
   views::MenuButton* button;
-  ui::MenuModel* model;
+  AtomMenuModel* model;
   if (menu_bar_->GetMenuButtonFromScreenPoint(screen_point, &model, &button) &&
       button->tag() != id_) {
-    DCHECK(menu_runner_->IsRunning());
-    menu_runner_->Cancel();
-    // After canceling the menu, we need to wait until next tick
-    // so we are out of nested message loop.
-    content::BrowserThread::PostTask(
-        content::BrowserThread::UI, FROM_HERE,
-        base::Bind(base::IgnoreResult(&views::MenuButton::Activate),
-                   base::Unretained(button), nullptr));
+    bool switch_in_progress = !!button_to_open_;
+    // Always update target to open.
+    button_to_open_ = button;
+    // Switching menu asyncnously to avoid crash.
+    if (!switch_in_progress) {
+      content::BrowserThread::PostTask(
+          content::BrowserThread::UI, FROM_HERE,
+          base::Bind(&views::MenuRunner::Cancel,
+                     base::Unretained(menu_runner_.get())));
+    }
   }
 
   return nullptr;

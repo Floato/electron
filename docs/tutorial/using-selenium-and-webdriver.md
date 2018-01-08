@@ -14,11 +14,11 @@ From [ChromeDriver - WebDriver for Chrome][chrome-driver]:
 for Electron. It is built on top of [WebdriverIO](http://webdriver.io/) and
 has helpers to access Electron APIs in your tests and bundles ChromeDriver.
 
-```bash
+```sh
 $ npm install --save-dev spectron
 ```
 
-```js
+```javascript
 // A simple test to verify a visible window is opened with a title
 var Application = require('spectron').Application
 var assert = require('assert')
@@ -57,7 +57,7 @@ a Node package for testing with web driver, we will use it as an example.
 
 First you need to download the `chromedriver` binary, and run it:
 
-```bash
+```sh
 $ npm install electron-chromedriver
 $ ./node_modules/.bin/chromedriver
 Starting ChromeDriver (v2.10.291558) on port 9515
@@ -68,7 +68,7 @@ Remember the port number `9515`, which will be used later
 
 ### 2. Install WebDriverJS
 
-```bash
+```sh
 $ npm install selenium-webdriver
 ```
 
@@ -79,7 +79,7 @@ upstream, except that you have to manually specify how to connect chrome driver
 and where to find Electron's binary:
 
 ```javascript
-const webdriver = require('selenium-webdriver');
+const webdriver = require('selenium-webdriver')
 
 const driver = new webdriver.Builder()
   // The "9515" is the port opened by chrome driver.
@@ -87,22 +87,22 @@ const driver = new webdriver.Builder()
   .withCapabilities({
     chromeOptions: {
       // Here is the path to your Electron binary.
-      binary: '/Path-to-Your-App.app/Contents/MacOS/Electron',
+      binary: '/Path-to-Your-App.app/Contents/MacOS/Electron'
     }
   })
   .forBrowser('electron')
-  .build();
+  .build()
 
-driver.get('http://www.google.com');
-driver.findElement(webdriver.By.name('q')).sendKeys('webdriver');
-driver.findElement(webdriver.By.name('btnG')).click();
+driver.get('http://www.google.com')
+driver.findElement(webdriver.By.name('q')).sendKeys('webdriver')
+driver.findElement(webdriver.By.name('btnG')).click()
 driver.wait(() => {
- return driver.getTitle().then((title) => {
-   return title === 'webdriver - Google Search';
- });
-}, 1000);
+  return driver.getTitle().then((title) => {
+    return title === 'webdriver - Google Search'
+  })
+}, 1000)
 
-driver.quit();
+driver.quit()
 ```
 
 ## Setting up with WebdriverIO
@@ -114,7 +114,7 @@ driver.
 
 First you need to download the `chromedriver` binary, and run it:
 
-```bash
+```sh
 $ npm install electron-chromedriver
 $ ./node_modules/.bin/chromedriver --url-base=wd/hub --port=9515
 Starting ChromeDriver (v2.10.291558) on port 9515
@@ -125,14 +125,14 @@ Remember the port number `9515`, which will be used later
 
 ### 2. Install WebdriverIO
 
-```bash
+```sh
 $ npm install webdriverio
 ```
 
 ### 3. Connect to chrome driver
 
 ```javascript
-const webdriverio = require('webdriverio');
+const webdriverio = require('webdriverio')
 const options = {
   host: 'localhost', // Use localhost as chrome driver server
   port: 9515,        // "9515" is the port opened by chrome driver.
@@ -143,9 +143,9 @@ const options = {
       args: [/* cli arguments */]           // Optional, perhaps 'app=' + /path/to/your/app/
     }
   }
-};
+}
 
-let client = webdriverio.remote(options);
+let client = webdriverio.remote(options)
 
 client
   .init()
@@ -153,9 +153,9 @@ client
   .setValue('#q', 'webdriverio')
   .click('#btnG')
   .getTitle().then((title) => {
-    console.log('Title was: ' + title);
+    console.log('Title was: ' + title)
   })
-  .end();
+  .end()
 ```
 
 ## Workflow
@@ -169,4 +169,4 @@ your app's folder. This eliminates the need to copy-paste your app into
 Electron's resource directory.
 
 [chrome-driver]: https://sites.google.com/a/chromium.org/chromedriver/
-[spectron]: http://electron.atom.io/spectron
+[spectron]: https://electron.atom.io/spectron

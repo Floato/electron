@@ -4,19 +4,20 @@
 
 #include "chrome/browser/printing/print_job_worker_owner.h"
 
-#include "base/message_loop/message_loop.h"
+#include "base/location.h"
+#include "base/single_thread_task_runner.h"
+#include "base/threading/thread_task_runner_handle.h"
 
 namespace printing {
 
 PrintJobWorkerOwner::PrintJobWorkerOwner()
-    : task_runner_(base::MessageLoop::current()->task_runner()) {
-}
+    : task_runner_(base::ThreadTaskRunnerHandle::Get()) {}
 
 PrintJobWorkerOwner::~PrintJobWorkerOwner() {
 }
 
-bool PrintJobWorkerOwner::RunsTasksOnCurrentThread() const {
-  return task_runner_->RunsTasksOnCurrentThread();
+bool PrintJobWorkerOwner::RunsTasksInCurrentSequence() const {
+  return task_runner_->RunsTasksInCurrentSequence();
 }
 
 bool PrintJobWorkerOwner::PostTask(const tracked_objects::Location& from_here,

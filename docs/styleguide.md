@@ -44,9 +44,11 @@ For API references, there are exceptions to this rule.
 
 ## Markdown rules
 
-* Use `bash` instead of `cmd` in code blocks (due to the syntax highlighter).
+* Use `sh` instead of `cmd` in code blocks (due to the syntax highlighter).
 * Lines should be wrapped at 80 columns.
 * No nesting lists more than 2 levels (due to the markdown renderer).
+* All `js` and `javascript` code blocks are linted with
+[standard-markdown](http://npm.im/standard-markdown).
 
 ## Picking words
 
@@ -62,7 +64,7 @@ The following rules only apply to the documentation of APIs.
 Each page must use the actual object name returned by `require('electron')`
 as the title, such as `BrowserWindow`, `autoUpdater`, and `session`.
 
-Under the page tile must be a one-line description starting with `>`.
+Under the page title must be a one-line description starting with `>`.
 
 Using `session` as example:
 
@@ -96,10 +98,14 @@ Using `autoUpdater` as an example:
 * API classes or classes that are part of modules must be listed under a
   `## Class: TheClassName` chapter.
 * One page can have multiple classes.
-* The constructors must be listed with `###`-level titles.
-* The methods must be listed under an `### Instance Methods` chapter.
-* The events must be listed under an `### Instance Events` chapter.
-* The properties must be listed under an `### Instance Properties` chapter.
+* Constructors must be listed with `###`-level titles.
+* [Static Methods](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Classes/static) must be listed under a `### Static Methods` chapter.
+* [Instance Methods](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Classes#Prototype_methods) must be listed under an `### Instance Methods` chapter.
+* All methods that have a return value must start their description with "Returns `[TYPE]` - Return description"
+  * If the method returns an `Object`, its structure can be specified using a colon followed by a newline then an unordered list of properties in the same style as function parameters.
+* Instance Events must be listed under an `### Instance Events` chapter.
+* Instance Properties must be listed under an `### Instance Properties` chapter.
+  * Instance properties must start with "A [Property Type] ..."
 
 Using the `Session` and `Cookies` classes as an example:
 
@@ -142,8 +148,8 @@ The methods chapter must be in the following form:
 ```markdown
 ### `objectName.methodName(required[, optional]))`
 
-* `required` String
-* `optional` Integer (optional)
+* `required` String - A parameter description.
+* `optional` Integer (optional) - Another parameter description.
 
 ...
 ```
@@ -162,7 +168,7 @@ The optional arguments are notated by square brackets `[]` surrounding the optio
 as well as the comma required if this optional argument follows another
 argument:
 
-```
+```sh
 required[, optional]
 ```
 
@@ -174,14 +180,14 @@ of argument is notated by either the common types:
 * [`Object`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Object)
 * [`Array`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Array)
 * [`Boolean`](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Global_Objects/Boolean)
-* Or a custom type like Electron's [`WebContent`](api/web-content.md)
+* Or a custom type like Electron's [`WebContent`](api/web-contents.md)
 
 If an argument or a method is unique to certain platforms, those platforms are
 denoted using a space-delimited italicized list following the datatype. Values
 can be `macOS`, `Windows`, or `Linux`.
 
 ```markdown
-* `animate` Boolean (optional) _macOS_ _Windows_
+* `animate` Boolean (optional) _macOS_ _Windows_ - Animate the thing.
 ```
 
 `Array` type arguments must specify what elements the array may include in
@@ -224,17 +230,4 @@ a module or a class.
 
 ## Documentation Translations
 
-Translations of the Electron docs are located within the `docs-translations`
-directory.
-
-To add another set (or partial set):
-
-* Create a subdirectory named by language abbreviation.
-* Translate the files.
-* Update the `README.md` within your language directory to link to the files
-  you have translated.
-* Add a link to your translation directory on the main Electron
-  [README](https://github.com/electron/electron#documentation-translations).
-
-Note that the files under `docs-translations` must only include the translated
-ones, the original English files should not be copied there.
+See [electron/electron-i18n](https://github.com/electron/electron-i18n#readme)

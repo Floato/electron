@@ -5,19 +5,23 @@
 #ifndef ATOM_BROWSER_UI_WIN_NOTIFY_ICON_H_
 #define ATOM_BROWSER_UI_WIN_NOTIFY_ICON_H_
 
-#include <windows.h>
+#include <windows.h>  // windows.h must be included first
+
 #include <shellapi.h>
 
 #include <string>
 
 #include "atom/browser/ui/tray_icon.h"
-#include "base/macros.h"
 #include "base/compiler_specific.h"
-#include "base/memory/scoped_ptr.h"
+#include "base/macros.h"
 #include "base/win/scoped_gdi_object.h"
 
 namespace gfx {
 class Point;
+}
+
+namespace views {
+class MenuRunner;
 }
 
 namespace atom {
@@ -52,8 +56,8 @@ class NotifyIcon : public TrayIcon {
                       const base::string16& title,
                       const base::string16& contents) override;
   void PopUpContextMenu(const gfx::Point& pos,
-                        ui::SimpleMenuModel* menu_model) override;
-  void SetContextMenu(ui::SimpleMenuModel* menu_model) override;
+                        AtomMenuModel* menu_model) override;
+  void SetContextMenu(AtomMenuModel* menu_model) override;
   gfx::Rect GetBounds() override;
 
  private:
@@ -75,7 +79,10 @@ class NotifyIcon : public TrayIcon {
   base::win::ScopedHICON icon_;
 
   // The context menu.
-  ui::SimpleMenuModel* menu_model_;
+  AtomMenuModel* menu_model_;
+
+  // Context menu associated with this icon (if any).
+  std::unique_ptr<views::MenuRunner> menu_runner_;
 
   DISALLOW_COPY_AND_ASSIGN(NotifyIcon);
 };

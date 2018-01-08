@@ -6,6 +6,7 @@
 
 #include "atom/browser/atom_browser_main_parts.h"
 #include "base/bind.h"
+#include "base/memory/ptr_util.h"
 #include "base/supports_user_data.h"
 
 namespace mate {
@@ -29,7 +30,7 @@ class IDUserData : public base::SupportsUserData::Data {
 }  // namespace
 
 TrackableObjectBase::TrackableObjectBase()
-    : weak_map_id_(0), wrapped_(nullptr), weak_factory_(this) {
+    : weak_map_id_(0), weak_factory_(this) {
   cleanup_ = RegisterDestructionCallback(GetDestroyClosure());
 }
 
@@ -46,23 +47,19 @@ void TrackableObjectBase::Destroy() {
 }
 
 void TrackableObjectBase::AttachAsUserData(base::SupportsUserData* wrapped) {
-  if (weak_map_id_ != 0) {
-    wrapped->SetUserData(kTrackedObjectKey, new IDUserData(weak_map_id_));
-    wrapped_ = nullptr;
-  } else {
-    // If the TrackableObjectBase is not ready yet then delay SetUserData until
-    // AfterInit is called.
-    wrapped_ = wrapped;
-  }
+  wrapped->SetUserData(kTrackedObjectKey,
+      base::MakeUnique<IDUserData>(weak_map_id_));
 }
 
 // static
-int32_t TrackableObjectBase::GetIDFromWrappedClass(base::SupportsUserData* w) {
-  auto id = static_cast<IDUserData*>(w->GetUserData(kTrackedObjectKey));
-  if (id)
-    return *id;
-  else
-    return 0;
+int32_t TrackableObjectBase::GetIDFromWrappedClass(
+    base::SupportsUserData* wrapped) {
+  if (wrapped) {
+    auto id = static_cast<IDUserData*>(wrapped->GetUserData(kTrackedObjectKey));
+    if (id)
+      return *id;
+  }
+  return 0;
 }
 
 // static

@@ -7,6 +7,7 @@
 
 #include "base/strings/string16.h"
 #include "content/public/renderer/render_view_observer.h"
+#include "third_party/WebKit/public/web/WebLocalFrame.h"
 
 namespace base {
 class ListValue;
@@ -24,21 +25,22 @@ class AtomRenderViewObserver : public content::RenderViewObserver {
  protected:
   virtual ~AtomRenderViewObserver();
 
+  virtual void EmitIPCEvent(blink::WebLocalFrame* frame,
+                            const base::string16& channel,
+                            const base::ListValue& args);
+
  private:
   // content::RenderViewObserver implementation.
-  void DidCreateDocumentElement(blink::WebLocalFrame* frame) override;
-  void DraggableRegionsChanged(blink::WebFrame* frame) override;
   bool OnMessageReceived(const IPC::Message& message) override;
+  void OnDestruct() override;
 
   void OnBrowserMessage(bool send_to_all,
                         const base::string16& channel,
                         const base::ListValue& args);
 
-  // Weak reference to renderer client.
-  AtomRendererClient* renderer_client_;
+  void OnOffscreen();
 
-  // Whether the document object has been created.
-  bool document_created_;
+  AtomRendererClient* renderer_client_;
 
   DISALLOW_COPY_AND_ASSIGN(AtomRenderViewObserver);
 };

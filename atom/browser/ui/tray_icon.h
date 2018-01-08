@@ -8,9 +8,9 @@
 #include <string>
 #include <vector>
 
+#include "atom/browser/ui/atom_menu_model.h"
 #include "atom/browser/ui/tray_icon_observer.h"
 #include "base/observer_list.h"
-#include "ui/base/models/simple_menu_model.h"
 #include "ui/gfx/geometry/rect.h"
 
 namespace atom {
@@ -43,9 +43,13 @@ class TrayIcon {
   // only works on macOS.
   virtual void SetTitle(const std::string& title);
 
-  // Sets whether the status icon is highlighted when it is clicked. This only
-  // works on macOS.
-  virtual void SetHighlightMode(bool highlight);
+  // Sets the status icon highlight mode. This only works on macOS.
+  enum HighlightMode {
+    ALWAYS,  // Always highlight the tray icon
+    NEVER,  // Never highlight the tray icon
+    SELECTION  // Highlight the tray icon when clicked or the menu is opened
+  };
+  virtual void SetHighlightMode(HighlightMode mode);
 
   // Displays a notification balloon with the specified contents.
   // Depending on the platform it might not appear by the icon tray.
@@ -55,10 +59,10 @@ class TrayIcon {
 
   // Popups the menu.
   virtual void PopUpContextMenu(const gfx::Point& pos,
-                                ui::SimpleMenuModel* menu_model);
+                                AtomMenuModel* menu_model);
 
   // Set the context menu for this icon.
-  virtual void SetContextMenu(ui::SimpleMenuModel* menu_model) = 0;
+  virtual void SetContextMenu(AtomMenuModel* menu_model) = 0;
 
   // Returns the bounds of tray icon.
   virtual gfx::Rect GetBounds();
@@ -66,7 +70,9 @@ class TrayIcon {
   void AddObserver(TrayIconObserver* obs) { observers_.AddObserver(obs); }
   void RemoveObserver(TrayIconObserver* obs) { observers_.RemoveObserver(obs); }
 
-  void NotifyClicked(const gfx::Rect& = gfx::Rect(), int modifiers = 0);
+  void NotifyClicked(const gfx::Rect& = gfx::Rect(),
+                     const gfx::Point& location = gfx::Point(),
+                     int modifiers = 0);
   void NotifyDoubleClicked(const gfx::Rect& = gfx::Rect(), int modifiers = 0);
   void NotifyBalloonShow();
   void NotifyBalloonClicked();
@@ -75,9 +81,16 @@ class TrayIcon {
                           int modifiers = 0);
   void NotifyDrop();
   void NotifyDropFiles(const std::vector<std::string>& files);
+  void NotifyDropText(const std::string& text);
   void NotifyDragEntered();
   void NotifyDragExited();
   void NotifyDragEnded();
+  void NotifyMouseEntered(const gfx::Point& location = gfx::Point(),
+                          int modifiers = 0);
+  void NotifyMouseExited(const gfx::Point& location = gfx::Point(),
+                         int modifiers = 0);
+  void NotifyMouseMoved(const gfx::Point& location = gfx::Point(),
+                         int modifiers = 0);
 
  protected:
   TrayIcon();

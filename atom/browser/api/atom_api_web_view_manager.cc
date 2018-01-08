@@ -3,12 +3,16 @@
 // found in the LICENSE file.
 
 #include "atom/browser/web_contents_preferences.h"
+#include "atom/browser/web_contents_zoom_controller.h"
 #include "atom/browser/web_view_manager.h"
 #include "atom/common/native_mate_converters/content_converter.h"
 #include "atom/common/native_mate_converters/value_converter.h"
-#include "atom/common/node_includes.h"
+#include "atom/common/options_switches.h"
 #include "content/public/browser/browser_context.h"
 #include "native_mate/dictionary.h"
+// Must be the last in the includes list.
+// See https://github.com/electron/electron/issues/10363
+#include "atom/common/node_includes.h"
 
 using atom::WebContentsPreferences;
 
@@ -23,6 +27,12 @@ void AddGuest(int guest_instance_id,
   if (manager)
     manager->AddGuest(guest_instance_id, element_instance_id, embedder,
                       guest_web_contents);
+
+  double zoom_factor;
+  if (options.GetDouble(atom::options::kZoomFactor, &zoom_factor)) {
+    atom::WebContentsZoomController::FromWebContents(guest_web_contents)
+        ->SetDefaultZoomFactor(zoom_factor);
+  }
 
   WebContentsPreferences::FromWebContents(guest_web_contents)->Merge(options);
 }

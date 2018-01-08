@@ -25,7 +25,12 @@ SQRLUpdater* g_updater = nil;
 namespace {
 
 bool g_update_available = false;
+std::string update_url_ = "";
 
+} // namespace
+
+std::string AutoUpdater::GetFeedURL() {
+  return update_url_;
 }
 
 // static
@@ -34,6 +39,8 @@ void AutoUpdater::SetFeedURL(const std::string& feed,
   Delegate* delegate = GetDelegate();
   if (!delegate)
     return;
+
+  update_url_ = feed;
 
   NSURL* url = [NSURL URLWithString:base::SysUTF8ToNSString(feed)];
   NSMutableURLRequest* urlRequest = [NSMutableURLRequest requestWithURL:url];
@@ -97,12 +104,20 @@ void AutoUpdater::CheckForUpdates() {
           delegate->OnUpdateNotAvailable();
         }
       } error:^(NSError *error) {
-        NSString* failureString = error.localizedFailureReason ?
-            [NSString stringWithFormat:@"%@: %@",
-                                       error.localizedDescription,
-                                       error.localizedFailureReason] :
-            [NSString stringWithString:error.localizedDescription];
-        delegate->OnError(base::SysNSStringToUTF8(failureString));
+        NSMutableString *failureString =
+          [NSMutableString stringWithString:error.localizedDescription];
+        if (error.localizedFailureReason) {
+          [failureString appendString:@": "];
+          [failureString appendString:error.localizedFailureReason];
+        }
+        if (error.localizedRecoverySuggestion) {
+          if (![failureString hasSuffix:@"."])
+            [failureString appendString:@"."];
+          [failureString appendString:@" "];
+          [failureString appendString:error.localizedRecoverySuggestion];
+        }
+        delegate->OnError(base::SysNSStringToUTF8(failureString), error.code,
+                          base::SysNSStringToUTF8(error.domain));
       }];
 }
 
@@ -111,7 +126,8 @@ void AutoUpdater::QuitAndInstall() {
   if (g_update_available) {
     [[g_updater relaunchToInstallUpdate] subscribeError:^(NSError* error) {
       if (delegate)
-        delegate->OnError(base::SysNSStringToUTF8(error.localizedDescription));
+        delegate->OnError(base::SysNSStringToUTF8(error.localizedDescription),
+                          error.code, base::SysNSStringToUTF8(error.domain));
     }];
   } else {
     if (delegate)
